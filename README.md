@@ -87,9 +87,9 @@ Assemblies nest to any depth, and the leaf assemblies hold the parts. Each
 part has its `description.md` and `part.py`. `product.md` and `assembly.md`
 name and describe the levels above.
 
-- **PB6** has:
+- **PB6**, a powerbank, has:
   - the assembly **Chassis**: a base driven by `l`, `b`, `h` and `wall`, its
-    charger and BMS boards, and the library's six-cell 18650 pack
+    charger boards, and the library's six-cell 18650 pack
     (`battery_holders/pack_3x2`), which the chassis `assembly.py` sets on the
     floor against the back wall.
   - its own part, the **lid**, sized from the base.
