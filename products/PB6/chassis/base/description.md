@@ -7,8 +7,7 @@ The box is as wide (along y) as the six-cell pack.
 
 The floor has no battery separators or side battery retainers: the batteries
 come in the six-cell 18650 pack (library battery_holders/pack_3x2), which sits
-on the floor against the back wall. A small wall in front of the pack, 12 mm
-high, runs across the breadth.
+on the floor against the back wall.
 
 The front wall has a hole for a USB plug, in line with the USB port of the
 IP6505 fast charge board, which sits behind it with its port against the
@@ -21,9 +20,6 @@ USB-C plug in line with that port.
 A second IP6505 fast charge board sits next to the first, on the other side
 from the CN3302, with its USB port against the inside of the front wall too,
 and the front wall has a second USB plug hole in line with it.
-
-The 2S BMS stands on edge against the front face of the front mini wall, with
-its component side facing the front.
 
 Two rectangular pillars stand on the floor at each of the pack's terminal
 ends, two at the front and two at the back, one under each of the pack's end

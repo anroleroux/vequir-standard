@@ -4,8 +4,7 @@ An open-top rectangular box with its side walls at +-y removed: a floor and
 the two end walls at +-x, all one wall thickness, open at the top and along
 both long sides. Four variables drive it: l, b, h and wall. The floor is
 flat, with no battery ribs: the six-cell 18650 pack from the parts library
-(battery_holders/pack_3x2) sits on it against the back wall, and a front mini
-wall stands across the breadth just in front of the pack.
+(battery_holders/pack_3x2) sits on it against the back wall.
 The front wall has two holes for USB-A plugs, in line with the ports of the
 two IP6505 fast-charge boards that sit side by side on the floor behind it,
 and a hole for a USB-C plug, in line with the port of the CN3302 battery
@@ -27,9 +26,6 @@ Assumptions where the description is silent:
   than the four loose cells were;
 - the pack's back end (the tips of its end strip's tabs) is against the back
   wall (-x); its size comes from pack_3x2 through load_library;
-- the front mini wall is 2 mm thick, 12 mm tall above the floor, and runs the
-  full breadth b, flush with the box's sides; its back face is 1 mm in front
-  of the pack's front end;
 - the first IP6505 board sits on the floor, centred across the breadth, its
   USB port's mouth against the inside of the front wall (+x); the second sits
   beside it on the -y side, 3 mm away, the same way round; each plug hole is
@@ -50,33 +46,25 @@ Assumptions where the description is silent:
 - the pillars' holes are M1.2 tap holes, 0.95 mm, 5 mm deep (as in the
   holder body): a 6 mm screw through the 1.5 mm tab reaches 4.5 mm in and
   forms its thread there; the thread is not modelled;
-- the 2S BMS stands on edge on the floor, its plain back flat against the
-  front face of the front mini wall and its components facing the front
-  (+x), centred across the breadth, its length along y; its size comes from
-  bms_2s through load_part.
 """
 import cadquery as cq
 
 pack = load_library("battery_holders/pack_3x2")  # the six-cell pack: its size
 ip6505 = load_part("../ip6505_charger")  # the USB-A output board behind the front wall
 cn3302 = load_part("../cn3302_charger")  # the USB-C battery charger beside it
-bms = load_part("../bms_2s")  # the battery protection board, on the mini wall's front
 
 # the driving variables, in mm
 l = 130.0  # length, outside, along x
 h = 50.0  # height, outside, along z
 wall = 3.0  # thickness of the walls and the floor
 
-# the six-cell pack on the floor, and the mini wall in front of it
-front_gap = 1.0  # between the pack's front end and the front mini wall
-front_t = 2.0  # front mini wall thickness, along x
-front_h = 12.0  # front mini wall height above the floor
+# the six-cell pack on the floor
+board_clearance = 1.0  # at least, between the pack's front end and the USB boards
 pack_size = pack.result.toCompound().BoundingBox()
 pack_length, pack_breadth, pack_height = pack_size.xlen, pack_size.ylen, pack_size.zlen
 b = pack_breadth  # breadth, outside, along y: as wide as the pack
 pack_back = -l / 2 + wall  # the pack's back end, against the back wall
 pack_front = pack_back + pack_length  # the pack's front end, the strip's tabs included
-front_x0 = pack_front + front_gap  # the front mini wall's back face
 pack_dx = pack_back - pack_size.xmin  # the pack's own x = 0, in the box
 pack_dy = -pack_size.center.y  # centred across the breadth
 pack_dz = wall - pack_size.zmin  # standing on the floor
@@ -111,15 +99,9 @@ cn3302_z = wall
 usbc_z = cn3302_z + cn3302.usb_axis_z  # the USB-C hole's centre height
 
 for board, x in ((ip6505, ip6505_x), (cn3302, cn3302_x)):
-    assert x - board.length / 2 > front_x0 + front_t, "a USB board does not fit in front of the mini wall"
+    assert x - board.length / 2 > pack_front + board_clearance, "a USB board does not fit in front of the pack"
 assert cn3302_y + cn3302.width / 2 < b / 2, "the CN3302 board does not fit across the breadth"
 assert min(ip6505_ys) - ip6505.width / 2 > -b / 2, "an IP6505 board does not fit across the breadth"
-
-# the BMS, on edge against the mini wall's front face, components to the front
-bms_x = front_x0 + front_t  # its back
-bms_y = 0.0  # centred across the breadth
-bms_z = wall + bms.width / 2  # its centre height: standing on the floor
-assert bms_x + bms.height < ip6505_x - ip6505.length / 2, "the BMS does not fit in front of the mini wall"
 
 # the space between the end walls, above the floor, through both long sides
 channel = (
@@ -127,14 +109,6 @@ channel = (
     .box(l - 2 * wall, b, h - wall, centered=(True, True, False))
 )
 result = cq.Workplane("XY").box(l, b, h, centered=(True, True, False)).cut(channel)
-
-# the front mini wall, on the floor
-front_wall = (
-    cq.Workplane("XY", origin=(front_x0 + front_t / 2, 0, wall))
-    .rect(front_t, b)
-    .extrude(front_h)
-)
-result = result.union(front_wall)
 
 plug_holes = (
     cq.Workplane("YZ", origin=(front_inside, 0, plug_z))
@@ -178,8 +152,6 @@ regions = {
         lambda f: abs(f.Center().z - pillar_top) < 1e-6),
     "tap_holes": result.faces("%CYLINDER").filter(  # M1.2, into the pillars
         lambda f: abs(f.Center().z - (pillar_top - tap_depth / 2)) < 1e-6),
-    "mini_wall_top": result.faces("+Z").filter(  # the top of the front mini wall
-        lambda f: abs(f.Center().z - (wall + front_h)) < 1e-6),
 }
 
 if "show_object" in globals():  # CQ-editor
