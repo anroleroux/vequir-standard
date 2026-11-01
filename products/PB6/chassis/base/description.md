@@ -3,6 +3,7 @@ A rectangular box that is open at the top. Four variables drive its size: l
 floor are all one wall thickness thick. x points along the length, y along
 the breadth and z up the height. The sides at +y and -y are removed and the
 sides at +x and -x are kept, so the box is also open along both long sides.
+The box is as wide (along y) as the six-cell pack.
 
 The floor has no battery separators or side battery retainers: the batteries
 come in the six-cell 18650 pack (library battery_holders/pack_3x2), which sits
@@ -23,3 +24,9 @@ and the front wall has a second USB plug hole in line with it.
 
 The 2S BMS stands on edge against the front face of the front mini wall, with
 its component side facing the front.
+
+Two rectangular pillars stand on the floor at each of the pack's terminal
+ends, two at the front and two at the back, one under each of the pack's end
+strip tabs. Each pillar's profile is the same as the tab's bottom, and it has
+two threaded holes in line with the tab's two holes. An M1.2 countersunk
+screw goes through each tab hole into its pillar.

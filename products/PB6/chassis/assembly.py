@@ -9,10 +9,15 @@ the pack, their USB ports against the front wall, each behind one of the
 wall's USB-A holes, and a CN3302 2S charger board sits beside them at +y,
 its USB-C port behind the wall's USB-C hole. The 2S BMS stands on edge
 against the front face of the front mini wall, its components facing the
-front.
+front. Eight M1.2 x 6 countersunk screws, two through each of the end
+strips' four tabs, fix the pack to the base's pillars.
 
 The base and the boards come from their own scripts through load_part and
 the pack through load_library, so the assembly follows any change to them.
+
+The summary's interference lists each pillar screw against the base: that is
+the screw's 1.2 mm shank forming its thread in the pillar's 0.95 mm tap hole,
+as intended.
 
 Assumptions where the description is silent:
 - the pack is centred across the breadth and stands on the floor, its back
@@ -30,8 +35,8 @@ bms = load_part("bms_2s")  # lying flat, components up, length along y, undersid
 
 # move the pack's back end onto the inside of the back wall, centre it across
 # the breadth and stand it on the floor
-pack_box = pack.result.toCompound().BoundingBox()
-pack_loc = cq.Location((base.pack_back - pack_box.xmin, -pack_box.center.y, base.wall - pack_box.zmin))
+screw = load_library("fasteners/m1_2x6_countersunk")  # standing up: tip on z = 0
+pack_loc = cq.Location((base.pack_dx, base.pack_dy, base.pack_dz))
 
 result = (
     cq.Assembly(name="chassis")
@@ -64,6 +69,14 @@ result.add(
     loc=cq.Location(cq.Vector(base.bms_x, base.bms_y, base.bms_z), cq.Vector(0, 1, 0), 90),
     color=cq.Color(0.20, 0.30, 0.55),  # board blue
 )
+
+# the pack fixed down: an M1.2 x 6 screw through each tab hole into its
+# pillar, the head flush in the tab's countersink
+screw_top = base.pack_dz + pack.tab_top
+for i, (x, y) in enumerate(base.pillar_holes, start=1):
+    result.add(screw.result, name=f"pillar_screw_{i}",
+               loc=cq.Location((x, y, screw_top - screw.length)),
+               color=cq.Color(0.70, 0.70, 0.72))
 
 regions = {}
 

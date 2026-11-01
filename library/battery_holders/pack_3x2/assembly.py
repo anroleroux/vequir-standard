@@ -16,7 +16,8 @@ Assumptions where the description is silent:
 - the strip at -x is the +x strip turned half a turn about z, so its tabs
   stay at the bottom and stick out away from the holders at both ends;
 - the screws in the strips' tabs (which fix the pack to something else) are
-  left out.
+  left out; the tabs' footprints and holes are exported (tab_z, tab_top,
+  tab_length, tab_width, tab_centres, tab_holes) for what the pack is fixed to.
 """
 import cadquery as cq
 
@@ -49,6 +50,18 @@ for side, label in ((1, "front"), (-1, "back")):
                    loc=cq.Location(cq.Vector(head - side * screw.length, side * y, strip_z + z),
                                    cq.Vector(0, 1, 0), side * 90),
                    color=screw_color)
+
+# where the strips' tabs are, in the pack's own coordinates, for whatever the
+# pack is fixed down to: each tab's footprint (its underside, a rectangle
+# from the holders' end face out to the tab's tip) and its two holes
+tab_z = strip_z  # the tabs' undersides
+tab_top = strip_z + strip.tab_top  # the tabs' tops, where the countersinks open
+tab_length = strip.thickness + strip.tab_reach  # each tab's footprint, along x
+tab_width = strip.tab_width  # along y
+tab_centres = [(side * (end + tab_length / 2), side * y)  # each footprint's centre
+               for side in (1, -1) for y in strip.tab_ys]
+tab_holes = [(side * (end + strip.tab_hole_x), side * (y + dy))
+             for side in (1, -1) for y in strip.tab_ys for dy in strip.tab_hole_offsets]
 
 regions = {}
 

@@ -10,12 +10,17 @@ The front wall has two holes for USB-A plugs, in line with the ports of the
 two IP6505 fast-charge boards that sit side by side on the floor behind it,
 and a hole for a USB-C plug, in line with the port of the CN3302 battery
 charger beside them.
+Four rectangular pillars stand on the floor, two at each end of the pack,
+one under each of its end strips' tabs, with the tab's footprint; each has
+two tapped holes in line with the tab's, for M1.2 screws that fix the pack.
 
 Assumptions where the description is silent:
 - l, b and h are the outside dimensions; the space between the end walls is
   l - 2 wall long and h - wall deep, and runs the full breadth b;
 - the floor is as thick as the walls;
-- l = 120, b = 80, h = 50 and wall = 3 mm until real sizes are given;
+- l = 120, h = 50 and wall = 3 mm until real sizes are given; b is the
+  pack's breadth (63 mm), read from pack_3x2, so the box is as wide as the
+  pack and its open sides are flush with the pack's;
 - the box is centred on the z axis and stands on z = 0, with l along x and b
   along y; corners are sharp;
 - l grows from 120 to 130 mm to take the pack, which is about 15 mm longer
@@ -38,6 +43,13 @@ Assumptions where the description is silent:
   with 0.5 mm clearance all round (9.25 x 3.4 mm), with fully rounded ends
   like the plug, centred on the port; the board's size and port height come
   from cn3302_charger through load_part;
+- the pillars stand on the floor and reach the tabs' undersides (15 mm),
+  so each tab rests on its pillar; each pillar's top is the tab's
+  footprint, from the holders' end face out to the tab's tip (4.9 x 10 mm);
+  the back pillars meet the back wall, which the back tabs touch;
+- the pillars' holes are M1.2 tap holes, 0.95 mm, 5 mm deep (as in the
+  holder body): a 6 mm screw through the 1.5 mm tab reaches 4.5 mm in and
+  forms its thread there; the thread is not modelled;
 - the 2S BMS stands on edge on the floor, its plain back flat against the
   front face of the front mini wall and its components facing the front
   (+x), centred across the breadth, its length along y; its size comes from
@@ -52,7 +64,6 @@ bms = load_part("../bms_2s")  # the battery protection board, on the mini wall's
 
 # the driving variables, in mm
 l = 130.0  # length, outside, along x
-b = 80.0  # breadth, outside, along y
 h = 50.0  # height, outside, along z
 wall = 3.0  # thickness of the walls and the floor
 
@@ -62,10 +73,22 @@ front_t = 2.0  # front mini wall thickness, along x
 front_h = 12.0  # front mini wall height above the floor
 pack_size = pack.result.toCompound().BoundingBox()
 pack_length, pack_breadth, pack_height = pack_size.xlen, pack_size.ylen, pack_size.zlen
+b = pack_breadth  # breadth, outside, along y: as wide as the pack
 pack_back = -l / 2 + wall  # the pack's back end, against the back wall
 pack_front = pack_back + pack_length  # the pack's front end, the strip's tabs included
 front_x0 = pack_front + front_gap  # the front mini wall's back face
-assert pack_breadth < b, "the pack is wider than the box"
+pack_dx = pack_back - pack_size.xmin  # the pack's own x = 0, in the box
+pack_dy = -pack_size.center.y  # centred across the breadth
+pack_dz = wall - pack_size.zmin  # standing on the floor
+
+# the pillars under the end strips' tabs, and their tap holes
+tap_drill = 0.95  # M1.2 x 0.25
+tap_depth = 5.0  # into each pillar's top
+pillar_length = pack.tab_length  # along x: the tab's footprint
+pillar_width = pack.tab_width  # along y
+pillar_top = pack_dz + pack.tab_z  # the tabs' undersides
+pillar_centres = [(x + pack_dx, y + pack_dy) for x, y in pack.tab_centres]
+pillar_holes = [(x + pack_dx, y + pack_dy) for x, y in pack.tab_holes]
 assert pack_height < h - wall, "the pack is taller than the space inside the box"
 
 # the two USB boards, ports against the front wall, and the holes for their plugs
@@ -126,6 +149,20 @@ usbc_hole = (
 )
 result = result.cut(plug_holes).cut(usbc_hole)
 
+pillars = (
+    cq.Workplane("XY", origin=(0, 0, wall))
+    .pushPoints(pillar_centres)
+    .rect(pillar_length, pillar_width)
+    .extrude(pillar_top - wall)
+)
+tap_holes = (
+    cq.Workplane("XY", origin=(0, 0, pillar_top - tap_depth))
+    .pushPoints(pillar_holes)
+    .circle(tap_drill / 2)
+    .extrude(tap_depth)
+)
+result = result.union(pillars).cut(tap_holes)
+
 regions = {
     "rim": result.faces(">Z"),  # the tops of the two end walls, where the lid sits
     "sides": result.faces(">Y or <Y"),  # the open long sides' edges, where the lid's skirts meet
@@ -137,6 +174,10 @@ regions = {
     "usbc_hole": result.faces().filter(  # the USB-C hole's sides: two flats, two rounded ends
         lambda f: f.Center().x > front_inside + 1e-6 and f.Center().x < l / 2 - 1e-6
         and abs(f.Center().y - cn3302_y) < usbc_w and abs(f.Center().z - usbc_z) < usbc_h),
+    "pillar_tops": result.faces("+Z").filter(  # where the tabs rest
+        lambda f: abs(f.Center().z - pillar_top) < 1e-6),
+    "tap_holes": result.faces("%CYLINDER").filter(  # M1.2, into the pillars
+        lambda f: abs(f.Center().z - (pillar_top - tap_depth / 2)) < 1e-6),
     "mini_wall_top": result.faces("+Z").filter(  # the top of the front mini wall
         lambda f: abs(f.Center().z - (wall + front_h)) < 1e-6),
 }
