@@ -99,13 +99,21 @@ def test_catalog_finds_assembly_models(tmp_path):
     assert find(root, "P1/stack").out_dir(tmp_path / "r") == tmp_path / "r/P1/stack/_assembly"
 
 
+def _only_thread_forming(summary):
+    """The chassis's only interference: each pillar screw's 1.2 mm shank in its
+    0.95 mm tap hole in the base, forming its thread (as in the pack)."""
+    pairs = [(i["a"], i["b"]) for i in summary["interference"]]
+    assert pairs == [("chassis/base", f"chassis/pillar_screw_{n}") for n in range(1, 9)]
+    assert all(0 < i["volume_mm3"] < 2.0 for i in summary["interference"])
+
+
 def test_the_pb6_chassis_carries_the_six_cell_pack_against_the_back_wall(tmp_path):
     """The real chassis: the six-cell pack from the library on the floor, its
     back end against the back (-x) wall, centred across the breadth, clear of
     the mini wall; no loose cells and no battery ribs any more."""
     summary = _summary(build_part(CHASSIS / "assembly.py", tmp_path / "out"))
     base = _summary(build_part(CHASSIS / "base" / "part.py", tmp_path / "base"))
-    assert summary["interference"] == []
+    _only_thread_forming(summary)
     names = [c["name"] for c in summary["components"]]
     assert not [n for n in names if "battery" in n]
     (pack,) = [c for c in summary["components"] if c["name"].endswith("pack_3x2")]
@@ -115,6 +123,23 @@ def test_the_pb6_chassis_carries_the_six_cell_pack_against_the_back_wall(tmp_pat
     assert pack["bounding_box_min"][1] == pytest.approx(-pack["bounding_box_max"][1])  # centred
     assert len([m for m in pack["meshes"] if m["name"].endswith("/battery")]) == 6
     assert base["regions"]["mini_wall_top"]["count"] == 1
+
+
+def test_the_pb6_pack_is_screwed_to_four_pillars(tmp_path):
+    """The base is as wide as the pack; four pillars, one under each end strip
+    tab, carry the tabs, each with two tap holes and two screws."""
+    summary = _summary(build_part(CHASSIS / "assembly.py", tmp_path / "out"))
+    base = _summary(build_part(CHASSIS / "base" / "part.py", tmp_path / "base"))
+    (pack,) = [c for c in summary["components"] if c["name"].endswith("pack_3x2")]
+    assert base["bounding_box"]["size"][1] == pytest.approx(
+        pack["bounding_box_max"][1] - pack["bounding_box_min"][1])
+    assert base["regions"]["pillar_tops"]["count"] == 4
+    assert base["regions"]["tap_holes"]["count"] == 8
+    screws = [c for c in summary["components"] if "pillar_screw_" in c["name"]]
+    assert len(screws) == 8
+    # the pack rests on the floor and on the four pillar tops
+    (touch,) = [c for c in summary["contacts"] if c["b"].endswith("pack_3x2")]
+    assert touch["a"] == "chassis/base" and touch["area_mm2"] > 0
 
 
 def test_the_pb6_chargers_sit_behind_their_plug_holes(tmp_path):
@@ -129,7 +154,7 @@ def test_the_pb6_chargers_sit_behind_their_plug_holes(tmp_path):
         assert board["bounding_box_min"][2] == pytest.approx(wall)
     assert base["regions"]["plug_holes"]["count"] == 8
     assert base["regions"]["usbc_hole"]["count"] == 4
-    assert summary["interference"] == []
+    _only_thread_forming(summary)
 
 
 def test_the_pb6_bms_stands_against_the_mini_wall(tmp_path):
@@ -178,7 +203,8 @@ def test_the_product_model_lists_only_what_it_holds_directly(tmp_path):
 def test_the_pb6_lid_fits_the_base(tmp_path):
     """The product model: the lid sits on the end walls' rims (+-x), its skirts
     close the open long sides (+-y), and its lips stay clear of the end walls
-    and of the battery pack."""
+    and of the battery pack. The pack is as wide as the base, so the skirts
+    also rest on the pack's sides."""
     summary = _summary(build_part(PRODUCTS / "PB6" / "assembly.py", tmp_path / "out"))
     box = _summary(build_part(CHASSIS / "base" / "part.py", tmp_path / "box"))
     assert summary["interference"] == []
@@ -188,7 +214,7 @@ def test_the_pb6_lid_fits_the_base(tmp_path):
     rims = 2 * b * wall  # the two end walls' tops
     sides = 2 * (l * wall + 2 * wall * (h - wall))  # the floor's and end walls' edges at +-y
     mini_wall = 2 * 2.0 * 12.0  # the front mini wall's ends, flush at +-y: 2 mm thick, 12 mm tall
-    assert lid["a"] == "PB6/chassis" and lid["area_mm2"] == pytest.approx(rims + sides + mini_wall)
+    assert lid["a"] == "PB6/chassis" and lid["area_mm2"] > rims + sides + mini_wall
     # the lid overhangs a = 5 mm at each end, adds its thickness each side and on top,
     # and reaches the base's bottom
     assert summary["bounding_box"]["size"] == pytest.approx([l + 10, b + 2 * wall, h + wall])
