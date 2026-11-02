@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import json
-import math
+import os
+import shutil
 from pathlib import Path
 
 import pytest
 
 from neobotics.catalog import build_catalog, discover_all, find, used_in
-from neobotics.part import build_part
-
-LIBRARY = Path(__file__).resolve().parents[1] / "library"
+from neobotics.part import build_part, library_roots
 
 PLATE = """\
 \"\"\"Plate.\"\"\"
@@ -135,69 +134,119 @@ def test_site_publishes_the_library_with_its_uses(tmp_path):
     assert (site / "products/P1/frame/bracket/index.html").exists()
 
 
-def test_the_single_18650_holder_cradles_its_cell(tmp_path):
-    """The cell lies along x in the body's two rib cradles, inside the open
-    frame, clear of every wall."""
-    summary = _summary(build_part(LIBRARY / "battery_holders/single_18650_holder/assembly.py",
-                                  tmp_path / "out"))
-    assert summary["interference"] == []
-    body, cell, positive, negative = summary["components"]
-    # a clip at each end, from the library, its spring leaf just off the cell's end
-    assert [positive["name"], negative["name"]] == [
-        "single_18650_holder/clip_positive", "single_18650_holder/clip_negative"]
-    assert positive["bounding_box_min"][0] == pytest.approx(32.7)
-    assert negative["bounding_box_max"][0] == pytest.approx(-32.7)
-    assert positive["bounding_box_max"][2] < body["bounding_box_max"][2]  # below the rim
-    assert {c["b"] for c in summary["contacts"]} == {positive["name"], negative["name"]}
-    assert cell["name"].endswith("/battery")
-    assert [cell["bounding_box_max"][i] - cell["bounding_box_min"][i] for i in range(3)] == \
-        pytest.approx([65.0, 18.4, 18.4])
-    assert cell["bounding_box_min"][2] == pytest.approx(1.0)  # on the cradles' bottoms
-    for i in range(3):  # inside the body
-        assert body["bounding_box_min"][i] <= cell["bounding_box_min"][i]
-        assert cell["bounding_box_max"][i] <= body["bounding_box_max"][i]
+# ---- libraries in other repositories -----------------------------------------
+STRAP = """\
+\"\"\"Strap round a clip.\"\"\"
+import cadquery as cq
+
+plate = load_library("fasteners/clip/plate")  # from the other repository's library
+result = cq.Workplane("XY").box(plate.l + 4, plate.b, 1.0, centered=(True, True, False))
+"""
 
 
-def test_the_single_18650_holder_takes_m12_screws_in_its_triangles(tmp_path):
-    """Four M1.2 tap holes, one in each bottom triangle at each end, entirely in
-    material, far enough in that a 2.3 mm countersunk head clears the side and
-    the bottom."""
-    import math
-
-    summary = _summary(build_part(LIBRARY / "battery_holders/single_18650_holder/body/part.py",
-                                  tmp_path / "out"))
-    assert summary["regions"]["screw_holes"]["count"] == 4
-    width = summary["bounding_box"]["size"][1]
-    foot = math.sqrt(2) * (18.4 / 2 + 0.1 + 1.0) - (1.0 + 18.4 / 2 + 0.1)  # the 45 face meets z = 0
-    inset = (width / 2 - foot) * (2 - math.sqrt(2)) / 2  # the triangle's inradius
-    assert inset - 2.3 / 2 == pytest.approx(0.676, abs=1e-3)  # head clear of side and bottom
-
-
-def test_the_end_strip_spans_three_holders_and_two_rows(tmp_path):
-    """The strip: three holders long, twelve countersinks for the M1.2 screws,
-    thin enough that a 6 mm screw flush in it reaches 4.5 mm into the holder."""
-    strip = _summary(build_part(LIBRARY / "battery_holders/end_strip/part.py", tmp_path / "strip"))
-    # 1.5 mm strip plus the tabs, 3.4 mm out past its front
-    assert strip["bounding_box"]["size"] == pytest.approx([1.5 + 3.4, 3 * 21.0, 10.0])
-    assert strip["regions"]["countersinks"]["count"] == 12
-    assert strip["regions"]["tab_countersinks"]["count"] == 4  # two per tab
-    # three material-saving slots, 10 x 6 mm with round ends, through the 1.5 mm strip
-    full = 1.5 * 3 * 21.0 * 10.0 + 2 * 3.4 * 10.0 * 1.5
-    assert strip["volume_mm3"] < full - 3 * (4 * 6 + math.pi * 9) * 1.5
-    screw = _summary(build_part(LIBRARY / "fasteners/m1_2x6_countersunk/part.py", tmp_path / "screw"))
-    assert screw["bounding_box"]["size"][1:] == pytest.approx([2.3, 6.0])  # head across, length
+def _repos(tmp_path: Path) -> tuple[Path, Path]:
+    """Two repositories side by side: ``standard`` holds the clip in its
+    library; ``power`` holds a strap in its own library and a product that
+    uses both, finding ``standard``'s library through ``libraries.txt``."""
+    _tree(tmp_path / "standard")
+    power = tmp_path / "power"
+    _write(power / "library" / "straps" / "strap" / "part.py", STRAP)
+    _write(power / "products" / "P2" / "frame" / "mount" / "part.py",
+           USER.replace("import cadquery as cq\n",
+                        'import cadquery as cq\n\nstrap = load_library("straps/strap")\n'))
+    _write(power / "libraries.txt", "# beside this repository\n../standard/library\n\n")
+    return tmp_path / "standard", power
 
 
+def test_libraries_txt_names_other_repositories_libraries(tmp_path, monkeypatch):
+    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    standard, power = _repos(tmp_path)
+    # its own library first, then the listed ones, from any depth
+    assert library_roots(power / "products" / "P2" / "frame" / "mount") == [
+        power / "library", standard / "library"]
+    assert library_roots(power / "library" / "straps" / "strap") == [
+        power / "library", standard / "library"]
+    # a product part using its own library's strap, which uses the other library's plate
+    summary = _summary(build_part(power / "products/P2/frame/mount/part.py", tmp_path / "out"))
+    assert summary["bounding_box"]["size"] == pytest.approx([20.0, 10.0, 3.0])
+    assert build_part(power / "library/straps/strap/part.py", tmp_path / "strap").ok
 
-def test_the_pack_joins_six_holders_with_two_strips(tmp_path):
-    """Six holders in two rows of three, a strip and twelve screws at each end:
-    the only overlaps are the 24 screws forming their threads in the holders."""
-    summary = _summary(build_part(LIBRARY / "battery_holders/pack_3x2/assembly.py", tmp_path / "out"))
-    names = [c["name"] for c in summary["components"]]
-    assert sum("upper_" in n or "lower_" in n for n in names) == 6
-    assert sum("strip_" in n for n in names) == 2
-    assert sum("screw_" in n for n in names) == 24
-    assert summary["bounding_box"]["size"][1:] == pytest.approx([63.0, 40.0])
-    clashes = summary["interference"]
-    assert len(clashes) == 24
-    assert all("screw_" in c["b"] and ("upper_" in c["a"] or "lower_" in c["a"]) for c in clashes)
+
+def test_the_environment_list_is_searched_first(tmp_path, monkeypatch):
+    standard, power = _repos(tmp_path)
+    elsewhere = tmp_path / "elsewhere" / "library"
+    _write(elsewhere / "fasteners" / "clip" / "plate" / "part.py", PLATE.replace("20.0", "30.0"))
+    monkeypatch.setenv("NEOBOTICS_LIBRARY", os.pathsep.join([str(elsewhere), str(tmp_path / "nope")]))
+    assert library_roots(power / "library") == [
+        elsewhere, power / "library", standard / "library"]  # missing ones left out
+    summary = _summary(build_part(power / "library/straps/strap/part.py", tmp_path / "out"))
+    assert summary["bounding_box"]["size"][0] == pytest.approx(34.0)  # the first plate found
+
+
+def test_a_missing_item_names_every_library_searched(tmp_path, monkeypatch):
+    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    standard, power = _repos(tmp_path)
+    _write(power / "library" / "straps" / "bad" / "part.py", 'x = load_library("fasteners/nut")\n')
+    result = build_part(power / "library/straps/bad/part.py", tmp_path / "out")
+    assert not result.ok
+    assert str(power / "library") in result.error and str(standard / "library") in result.error
+
+
+def test_a_library_only_repository_builds_its_site(tmp_path, monkeypatch):
+    """No products/: the overview is the library, with pictures, under the
+    title and lede from site.md."""
+    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    standard, _ = _repos(tmp_path)
+    shutil.rmtree(standard / "products")
+    _write(standard / "site.md", "# Acme Standard <parts>\n\nClips & pins.\n")
+    index, failures = build_catalog(standard / "products", tmp_path / "results",
+                                    tmp_path / "site", log=lambda _: None)
+    assert not failures
+    overview = index.read_text()
+    assert "<h1>Acme Standard &lt;parts&gt;</h1>" in overview and "Clips &amp; pins." in overview
+    assert "<h2>Products" not in overview
+    assert 'src="library/fasteners/clip/_assembly/part.png"' in overview  # pictured
+    clip = (tmp_path / "site/library/fasteners/clip/index.html").read_text()
+    assert "<title>Clip · Acme Standard &lt;parts&gt;</title>" in clip
+    assert ">Acme Standard &lt;parts&gt;</a>" in clip  # the breadcrumb's root
+    with pytest.raises(FileNotFoundError):
+        discover_all(tmp_path / "nothing" / "products")
+
+
+def test_a_site_publishes_its_uses_of_other_libraries(tmp_path, monkeypatch):
+    """uses.json: each use of another repository's library item, resolved as
+    load_library resolves it, with the page of the script that places it;
+    uses of the repository's own library are left out."""
+    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    _, power = _repos(tmp_path)
+    _, failures = build_catalog(power / "products", tmp_path / "results", tmp_path / "site",
+                                log=lambda _: None)
+    assert not failures
+    manifest = json.loads((tmp_path / "site" / "uses.json").read_text())
+    assert manifest["source"] == "power"
+    assert manifest["uses"] == [
+        {"library": "standard", "item": "fasteners/clip", "user": "P2/frame/mount",
+         "href": "products/P2/frame/mount/index.html"},
+        {"library": "standard", "item": "fasteners/clip/plate", "user": "P2/frame/mount",
+         "href": "products/P2/frame/mount/index.html"},
+        {"library": "standard", "item": "fasteners/clip/plate", "user": "library/straps/strap",
+         "href": "library/straps/strap/index.html"},
+    ]  # and not straps/strap, which is power's own
+
+
+def test_library_pages_read_the_sites_that_use_them(tmp_path, monkeypatch):
+    """With used-by.txt, each library item's "Used in" list names the sites
+    whose uses.json the page reads, and the item to look for there."""
+    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    standard, _ = _repos(tmp_path)
+    _write(standard / "used-by.txt", "# sites that use this library\nhttps://example.org/power\n")
+    _, failures = build_catalog(standard / "products", tmp_path / "results", tmp_path / "site",
+                                log=lambda _: None)
+    assert not failures
+    pin = (tmp_path / "site/library/fasteners/clip/pin/index.html").read_text()
+    assert ('data-library="standard" data-item="fasteners/clip/pin" '
+            'data-sources="[&quot;https://example.org/power/&quot;]"') in pin
+    assert 'fetch(base + "uses.json")' in pin
+    assert "<p class=muted>Not placed in any product yet.</p>" in pin  # until a site says so
+    clip = (tmp_path / "site/library/fasteners/clip/index.html").read_text()
+    assert "<p class=muted hidden>Not placed" in clip  # placed locally, by P1's bracket

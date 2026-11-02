@@ -65,9 +65,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from .part import LIBRARY_DIR
+from .part import LIBRARY_DIR, library_roots, script_in
 from .pipeline import run_script
-from .site import Assembly, Product, build_site, read_part
+from .site import DEFAULT_LEDE, DEFAULT_TITLE, Assembly, Product, build_site, read_part
 
 PART_SCRIPT = "part.py"
 ASSEMBLY_SCRIPT = "assembly.py"
@@ -79,6 +79,12 @@ _USES_LIBRARY = re.compile(r"""load_library\(\s*["']([^"']+)["']""")
 #: Where an assembly model is built and published, inside its assembly's
 #: directory; the leading underscore keeps it clear of every slug.
 ASSEMBLY_DIR = "_assembly"
+#: The site's title and lede, beside ``products/`` and ``library/``: "# Title", then the lede.
+SITE_FILE = "site.md"
+#: Beside it in a library repository: the sites of the repositories that use
+#: this library, one base URL per line (``https://anroleroux.co.za/vequir-power/``);
+#: each item's page reads their ``uses.json`` to list them under "Used in".
+USED_BY_FILE = "used-by.txt"
 
 
 @dataclass
@@ -186,12 +192,30 @@ def library_for(root: Path) -> Path:
 
 
 def discover_all(root: Path, library: Path | None = None) -> list[Entry]:
-    """The products under ``root``, then the parts library (if there is one)."""
+    """The products under ``root``, then the parts library (if there is one).
+    Either may be missing (a repository may hold only a library, or only
+    products), but not both."""
+    root = Path(root)
     library = library_for(root) if library is None else Path(library)
-    entries = discover(root)
+    if not root.is_dir() and not library.is_dir():
+        raise FileNotFoundError(f"{root}: no such catalogue directory, and no parts "
+                                f"library at {library}")
+    entries = discover(root) if root.is_dir() else []
     if library.is_dir():
         entries += discover(library, LIBRARY)
     return entries
+
+
+def read_site_heading(root: Path, library: Path | None = None) -> tuple[str, str]:
+    """The site's (title, lede) from ``site.md`` beside the catalogue (the
+    repository root), else neoBotics' own."""
+    root = Path(root)
+    library = library_for(root) if library is None else Path(library)
+    for path in (root.parent / SITE_FILE, library.parent / SITE_FILE):
+        if path.is_file():
+            title, lede = read_heading(path, DEFAULT_TITLE)
+            return title, lede or DEFAULT_LEDE
+    return DEFAULT_TITLE, DEFAULT_LEDE
 
 
 def find(root: Path, designation: str, library: Path | None = None) -> Entry:
@@ -217,6 +241,56 @@ def used_in(entries: list[Entry]) -> dict[str, list[str]]:
             if entry.address not in here:
                 here.append(entry.address)
     return users
+
+
+def repo_name(library: Path) -> str:
+    """The repository a parts library belongs to: the directory holding it
+    (``vequir-standard`` for ``.../vequir-standard/library``)."""
+    return Path(library).resolve().parent.name
+
+
+def page_of(address: str) -> str:
+    """A script's page, from the site root: ``products/PB6/chassis/index.html``,
+    ``library/battery_holders/pack_3x2/index.html``."""
+    return address + "/index.html" if address.startswith(LIBRARY + "/") \
+        else f"{PRODUCTS}/{address}/index.html"
+
+
+def foreign_uses(entries: list[Entry], library: Path | None) -> list[dict]:
+    """Every use of another repository's library item, as ``uses.json`` lists
+    them: which library provides it (its repository's name), the item, and
+    the script that places it with its page.  Each use is resolved as
+    ``load_library`` resolves it, from the calling script's directory; uses
+    of this repository's own library are left out (its pages list those)."""
+    own = Path(library).resolve() if library is not None else None
+    uses, seen = [], set()
+    for entry in entries:
+        for item in entry.uses():
+            for root in library_roots(entry.script.parent):
+                if script_in(root / item) is not None:
+                    break
+            else:
+                continue  # unresolved: the build reports it
+            if root.resolve() == own:
+                continue
+            key = (repo_name(root), item, entry.address)
+            if key not in seen:
+                seen.add(key)
+                uses.append({"library": key[0], "item": item, "user": entry.address,
+                             "href": page_of(entry.address)})
+    return uses
+
+
+def read_used_by(root: Path, library: Path | None = None) -> list[str]:
+    """The base URLs ``used-by.txt`` beside the catalogue lists (``#`` comments),
+    each ending in ``/``."""
+    root = Path(root)
+    library = library_for(root) if library is None else Path(library)
+    for path in (root.parent / USED_BY_FILE, library.parent / USED_BY_FILE):
+        if path.is_file():
+            urls = [line.split("#", 1)[0].strip() for line in path.read_text().splitlines()]
+            return [u if u.endswith("/") else u + "/" for u in urls if u]
+    return []
 
 
 def _assemble(roots: dict[str, Path], built: list[tuple[Entry, object]],
@@ -282,7 +356,11 @@ def build_catalog(root: Path, results: Path, site_dir: Path, log=print,
         name = entry.part or (entry.assemblies[-1] if entry.assemblies else entry.product)
         built.append((entry, read_part(out, name)))
     trees = _assemble({PRODUCTS: root, LIBRARY: library}, built, used_in(entries))
-    index = build_site(trees, site_dir)
+    title, lede = read_site_heading(root, library)
+    source = repo_name(library) if library.is_dir() else Path(root).resolve().parent.name
+    index = build_site(trees, site_dir, title=title, lede=lede, source=source,
+                       uses=foreign_uses(entries, library if library.is_dir() else None),
+                       used_by=read_used_by(root, library))
     return index, failures
 
 

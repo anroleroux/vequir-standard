@@ -53,6 +53,20 @@ ASSEMBLY_DIR = "_assembly"
 IMAGES = ["part.png", "part_rear_below.png"]
 #: The parts library's section of the site (catalog.LIBRARY).
 LIBRARY = "library"
+#: The site's title (the overview's heading, the breadcrumb's root, every
+#: page title's suffix) and the overview's lede, unless ``build_site`` is
+#: given others (a catalogue's ``site.md``).
+DEFAULT_TITLE = "neoBotics"
+DEFAULT_LEDE = ("Parts described in plain language, written as CadQuery B-rep code, "
+                "built and checked as exact solids.")
+#: The site being written, as ``build_site`` sets it: its title and lede;
+#: ``source``, the repository it is built from (its parts library's name in
+#: other sites' ``uses.json``); ``used_by``, the base URLs of the sites whose
+#: ``uses.json`` its library pages read for their "Used in" lists.
+_site = {"title": DEFAULT_TITLE, "lede": DEFAULT_LEDE, "source": "", "used_by": []}
+#: Published at the site root: what this site's scripts take from other
+#: repositories' libraries, for those libraries' pages to list.
+USES_FILE = "uses.json"
 
 
 @dataclass
@@ -190,10 +204,21 @@ def _check_unique(products: list[Product]) -> None:
                   [a.slug for a in node.assemblies] + [x.name for x in node.parts])
 
 
-def build_site(products: list[Product], site_dir: Path) -> Path:
+def build_site(products: list[Product], site_dir: Path, *, title: str = DEFAULT_TITLE,
+               lede: str = DEFAULT_LEDE, source: str = "", uses: list[dict] | None = None,
+               used_by: list[str] | None = None) -> Path:
     """Write the overview, a page per product, assembly and part, and every
-    part's and assembled model's files."""
+    part's and assembled model's files.  ``title`` names the site (its
+    overview heading, breadcrumb root and page titles); ``lede`` opens the
+    overview.
+
+    ``uses.json`` at the root lists ``uses`` (this site's scripts' uses of
+    other repositories' library items: ``library``, ``item``, ``user``,
+    ``href``) under ``source``, the repository's name.  ``used_by`` names the
+    sites whose ``uses.json`` each library page fetches, in the browser, to
+    add their uses of the item to its "Used in" list."""
     site_dir = Path(site_dir)
+    _site.update(title=title, lede=lede, source=source, used_by=list(used_by or []))
     products = [p for p in products if p.n_parts or p.model]
     if not products:
         raise ValueError("no parts to publish")
@@ -214,6 +239,8 @@ def build_site(products: list[Product], site_dir: Path) -> Path:
         (site_dir / LIBRARY / "index.html").write_text(render_library(categories))
     index = site_dir / "index.html"
     index.write_text(render_overview(products))
+    (site_dir / USES_FILE).write_text(json.dumps(
+        {"source": source, "title": title, "uses": list(uses or [])}, indent=1) + "\n")
     (site_dir / ".nojekyll").write_text("")
     return index
 
@@ -403,7 +430,7 @@ def _breadcrumb(product: Product, chain: tuple[Assembly, ...], root: str,
                 current: str | None) -> str:
     """neoBotics › PB6 › Chassis › … (neoBotics › Parts library › Battery holders
     › … in the library) — every level a link but the page itself."""
-    levels = [("neoBotics", f"{root}index.html")]
+    levels = [(_site["title"], f"{root}index.html")]
     if product.in_library:
         levels.append(("Parts library", f"{root}{LIBRARY}/index.html"))
     levels.append((product.title, f"{root}{product_dir(product)}/index.html"))
@@ -426,17 +453,46 @@ def _library_use(product: Product, chain: tuple[Assembly, ...], root: str,
         return ""
     item = part or product.node(chain)
     call = f'load_library("{designation(product, chain, part)}")'
-    if item.used_in:
-        links = "".join(
-            f'<li><a href="{_e(root)}{"" if a.startswith(LIBRARY + "/") else "products/"}'
-            f'{_e(a)}/index.html"><code>{_e(a)}</code></a></li>' for a in item.used_in)
+    links = "".join(
+        f'<li><a href="{_e(root)}{"" if a.startswith(LIBRARY + "/") else "products/"}'
+        f'{_e(a)}/index.html"><code>{_e(a)}</code></a></li>' for a in item.used_in)
+    none = "<p class=muted{hidden}>Not placed in any product yet.</p>"
+    if _site["used_by"]:  # other repositories' uses, added in the browser
+        sources = _e(json.dumps(_site["used_by"]))
+        users = (f'<ul class=used-list data-library="{_e(_site["source"])}" '
+                 f'data-item="{_e(designation(product, chain, part))}" data-sources="{sources}">'
+                 f'{links}</ul>{none.format(hidden=" hidden" if links else "")}'
+                 f"<script>{_USED_BY_JS}</script>")
+    elif links:
         users = f"<ul class=used-list>{links}</ul>"
     else:
-        users = "<p class=muted>Not placed in any product yet.</p>"
+        users = none.format(hidden="")
     return (f"<section class=reuse><h2>Reuse</h2>"
             f"<p>Place it from any part or assembly script:</p>"
             f"<pre><code>{_e(call)}</code></pre>"
             f"<h3>Used in</h3>{users}</section>")
+
+
+#: Fills a library page's "Used in" list from the other sites' uses.json: each
+#: use of this library's item there becomes a link to the page that places it.
+_USED_BY_JS = """(function () {
+  var ul = document.currentScript.parentNode.querySelector("ul[data-sources]");
+  var none = ul.nextElementSibling;
+  JSON.parse(ul.dataset.sources).forEach(function (base) {
+    fetch(base + "uses.json").then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) {
+        (m && m.uses || []).forEach(function (u) {
+          if (u.library !== ul.dataset.library || u.item !== ul.dataset.item) return;
+          var li = document.createElement("li"), a = document.createElement("a"),
+              code = document.createElement("code");
+          a.href = new URL(u.href, base).href;
+          code.textContent = (m.source || base) + " · " + u.user;
+          a.appendChild(code); li.appendChild(a); ul.appendChild(li);
+          none.hidden = true;
+        });
+      }).catch(function () {});
+  });
+})();"""
 
 
 def _up(title: str, href: str) -> str:
@@ -518,7 +574,7 @@ def render_node(product: Product, chain: tuple[Assembly, ...] = ()) -> str:
   {model}
   {_up(parent_title, '../index.html')}
 </main>"""
-    return _page(f"{node.title} · neoBotics", f"{node.title}: its assembled model and contents, "
+    return _page(f"{node.title} · {_site['title']}", f"{node.title}: its assembled model and contents, "
                  "built as CadQuery B-rep code.", body, viewer=bool(node.model))
 
 
@@ -539,7 +595,7 @@ def render_part(product: Product, chain: tuple[Assembly, ...], part: Part) -> st
   {_library_use(product, chain, root, part)}
   {_up(parent.title, '../index.html')}
 </main>"""
-    return _page(f"{part.title} · neoBotics", f"{part.title}: built as CadQuery B-rep code.",
+    return _page(f"{part.title} · {_site['title']}", f"{part.title}: built as CadQuery B-rep code.",
                  body, viewer=True)
 
 
@@ -568,7 +624,7 @@ def render_library(categories: list[Product]) -> str:
     """The parts library's own page: a card per category."""
     body = f"""<header class="site-head compact">
   <div class=wrap>
-    <nav class=crumbs-bar aria-label=Breadcrumb><ol><li><a href="../index.html">neoBotics</a></li><li aria-current=page>Parts library</li></ol></nav>
+    <nav class=crumbs-bar aria-label=Breadcrumb><ol><li><a href="../index.html">{_e(_site['title'])}</a></li><li aria-current=page>Parts library</li></ol></nav>
     <p class=eyebrow>Library</p>
     <h1 class=product-title>Parts library</h1>
     <p>Reusable parts and assemblies, filed by category. Each is built and checked like any
@@ -577,24 +633,30 @@ def render_library(categories: list[Product]) -> str:
 </header>
 <main class=wrap>
   {_library_section(categories, "../")}
-  {_up("all products", "../index.html")}
+  {_up(_site["title"], "../index.html")}
 </main>"""
-    return _page("Parts library · neoBotics", "Reusable parts and assemblies, by category, "
+    return _page(f"Parts library · {_site['title']}", "Reusable parts and assemblies, by category, "
                  "built as CadQuery B-rep code.", body, viewer=False)
 
 
 def render_overview(products: list[Product]) -> str:
     """The landing page: what the pipeline does, then a card per product, then
-    the parts library's categories."""
+    the parts library's categories.  A site with no products (a library
+    repository) leaves the products section out and pictures the categories."""
     categories = [p for p in products if p.in_library]
     products = [p for p in products if not p.in_library]
     cards = "".join(_product_card(p) for p in products)
     n_parts = sum(p.n_parts for p in products)
-    library = _library_section(categories, pictures=False) if categories else ""  # text cards
+    # text cards beside products; with no products the library is the page
+    library = (_library_section(categories, pictures=not products) if categories else "")
+    listing = f"""<section class=contents>
+    <h2>Products <span class=count>{_plural(len(products), 'product')} · {_plural(n_parts, 'part')}</span></h2>
+    <ul class=item-grid>{cards}</ul>
+  </section>""" if products else ""
     body = f"""<header class=site-head>
   <div class=wrap>
-    <h1>neoBotics</h1>
-    <p class=lede>Parts described in plain language, written as CadQuery B-rep code, built and checked as exact solids.</p>
+    <h1>{_e(_site['title'])}</h1>
+    <p class=lede>{_e(_site['lede'])}</p>
     <ol class=flow>
       <li><span>Description</span><small>natural language</small></li>
       <li><span>part.py</span><small>CadQuery B-rep code</small></li>
@@ -604,13 +666,10 @@ def render_overview(products: list[Product]) -> str:
   </div>
 </header>
 <main class=wrap>
-  <section class=contents>
-    <h2>Products <span class=count>{_plural(len(products), 'product')} · {_plural(n_parts, 'part')}</span></h2>
-    <ul class=item-grid>{cards}</ul>
-  </section>
+  {listing}
   {library}
 </main>"""
-    return _page("neoBotics products", "Products, their assemblies and parts, built from "
+    return _page(f"{_site['title']} products" if products else _site["title"], "Products, their assemblies and parts, built from "
                  "natural-language descriptions as CadQuery B-rep code.", body, viewer=False)
 
 

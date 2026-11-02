@@ -12,7 +12,6 @@ from neobotics.cli import main as cli_main
 from neobotics.pipeline import run_script
 from neobotics.site import DOWNLOADS, Assembly, Product, build_site, read_part
 
-PRODUCTS = Path(__file__).resolve().parents[1] / "products"
 BRACKET = Path(__file__).resolve().parent / "fixtures" / "nema17_bracket"
 
 PLATE = """\
@@ -51,10 +50,6 @@ def _page(catalogue, *path):
 
 
 # ---- the breakdown -----------------------------------------------------------
-def test_discover_walks_the_real_catalogue():
-    designations = [e.designation for e in discover(PRODUCTS)]
-    assert designations == ["PB6/chassis", "PB6/chassis/base", "PB6/chassis/cn3302_charger", "PB6/chassis/ip6505_charger",
-                            "PB6", "PB6/lid"]
 
 
 def test_discover_follows_sub_assemblies(tmp_path):
@@ -91,15 +86,6 @@ def test_a_part_holds_no_directories(tmp_path):
         discover(tmp_path)
 
 
-def test_find_by_designation():
-    assert find(PRODUCTS, "PB6/chassis/base/").script.name == "part.py"
-    assert find(PRODUCTS, "PB6/chassis").script.name == "assembly.py"
-    assert find(PRODUCTS, "PB6").script.name == "assembly.py"  # the product's own model
-    assert find(PRODUCTS, "PB6/lid").part == "lid"
-    with pytest.raises(KeyError):
-        find(PRODUCTS, "PB6/chassis/nope")
-
-
 @pytest.mark.parametrize("script, title", [
     ('"""Wheel hub."""\nimport cadquery as cq\n', "Wheel hub"),
     ('"""A plate.\n\nMore words.\n"""\n', "A plate"),
@@ -119,10 +105,12 @@ def test_read_heading(tmp_path):
 
 
 def test_build_command_builds_one_part_by_designation(tmp_path, capsys):
-    assert cli_main(["build", "PB6/chassis/base", "--out", str(tmp_path)]) == 0
-    cad = tmp_path / "PB6" / "chassis" / "base" / "cad"
-    assert (cad / "part.step").exists()
-    assert "built PB6/chassis/base" in capsys.readouterr().out
+    _part(tmp_path / "products" / "A1" / "plates" / "good")
+    out = tmp_path / "out"
+    assert cli_main(["build", "A1/plates/good", "--root", str(tmp_path / "products"),
+                     "--out", str(out)]) == 0
+    assert (out / "A1" / "plates" / "good" / "cad" / "part.step").exists()
+    assert "built A1/plates/good" in capsys.readouterr().out
 
 
 def test_cad_run_keeps_the_description_next_to_the_script(tmp_path):
