@@ -211,3 +211,42 @@ def test_a_library_only_repository_builds_its_site(tmp_path, monkeypatch):
     assert ">Acme Standard &lt;parts&gt;</a>" in clip  # the breadcrumb's root
     with pytest.raises(FileNotFoundError):
         discover_all(tmp_path / "nothing" / "products")
+
+
+def test_a_site_publishes_its_uses_of_other_libraries(tmp_path, monkeypatch):
+    """uses.json: each use of another repository's library item, resolved as
+    load_library resolves it, with the page of the script that places it;
+    uses of the repository's own library are left out."""
+    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    _, power = _repos(tmp_path)
+    _, failures = build_catalog(power / "products", tmp_path / "results", tmp_path / "site",
+                                log=lambda _: None)
+    assert not failures
+    manifest = json.loads((tmp_path / "site" / "uses.json").read_text())
+    assert manifest["source"] == "power"
+    assert manifest["uses"] == [
+        {"library": "standard", "item": "fasteners/clip", "user": "P2/frame/mount",
+         "href": "products/P2/frame/mount/index.html"},
+        {"library": "standard", "item": "fasteners/clip/plate", "user": "P2/frame/mount",
+         "href": "products/P2/frame/mount/index.html"},
+        {"library": "standard", "item": "fasteners/clip/plate", "user": "library/straps/strap",
+         "href": "library/straps/strap/index.html"},
+    ]  # and not straps/strap, which is power's own
+
+
+def test_library_pages_read_the_sites_that_use_them(tmp_path, monkeypatch):
+    """With used-by.txt, each library item's "Used in" list names the sites
+    whose uses.json the page reads, and the item to look for there."""
+    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    standard, _ = _repos(tmp_path)
+    _write(standard / "used-by.txt", "# sites that use this library\nhttps://example.org/power\n")
+    _, failures = build_catalog(standard / "products", tmp_path / "results", tmp_path / "site",
+                                log=lambda _: None)
+    assert not failures
+    pin = (tmp_path / "site/library/fasteners/clip/pin/index.html").read_text()
+    assert ('data-library="standard" data-item="fasteners/clip/pin" '
+            'data-sources="[&quot;https://example.org/power/&quot;]"') in pin
+    assert 'fetch(base + "uses.json")' in pin
+    assert "<p class=muted>Not placed in any product yet.</p>" in pin  # until a site says so
+    clip = (tmp_path / "site/library/fasteners/clip/index.html").read_text()
+    assert "<p class=muted hidden>Not placed" in clip  # placed locally, by P1's bracket

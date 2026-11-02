@@ -30,6 +30,10 @@ product page (its catalogue site on GitHub Pages):
   vequir-unit lists both. `load_library` searches its own `library/` first,
   then those. Dependencies only point down: unit → power → standard. Never
   make vequir-standard use vequir-power.
+- The other direction is display only: a library repository's `used-by.txt`
+  lists the sites of the repositories that use it, and its item pages read
+  their `uses.json` for "Used in". When a repository starts using another's
+  library, add its site to that library's `used-by.txt`.
 - So clone the repositories side by side (`neoBotics/`, `vequir-standard/`,
   `vequir-power/`, `vequir-unit/`) and run every command from the root of
   the repository being changed.

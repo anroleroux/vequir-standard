@@ -138,7 +138,16 @@ script resolves against its own repository, so a vequir-power part loaded
 from vequir-unit still finds vequir-standard through vequir-power's file.
 
 The site has a page for the library, and each item's page shows the call
-that places it and the products in the same repository that use it.
+that places it and every script that uses it, in any repository:
+
+- each site publishes `uses.json` at its root: its scripts' uses of other
+  repositories' library items, each resolved as `load_library` resolves it,
+  with the page of the script that places it;
+- a library repository lists the sites of the repositories that use it in
+  `used-by.txt` beside `site.md`, one base URL per line
+  (`https://anroleroux.co.za/vequir-unit/`). Its item pages fetch those
+  sites' `uses.json` in the browser and add their uses to "Used in". So the
+  list stays current when a user changes, without rebuilding the library.
 
 In a Claude Code session, the `neobotics-part` skill
 (`.claude/skills/neobotics-part/SKILL.md`, also in each catalogue

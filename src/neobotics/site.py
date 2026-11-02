@@ -59,8 +59,14 @@ LIBRARY = "library"
 DEFAULT_TITLE = "neoBotics"
 DEFAULT_LEDE = ("Parts described in plain language, written as CadQuery B-rep code, "
                 "built and checked as exact solids.")
-#: The title and lede of the site being written; ``build_site`` sets them.
-_site = {"title": DEFAULT_TITLE, "lede": DEFAULT_LEDE}
+#: The site being written, as ``build_site`` sets it: its title and lede;
+#: ``source``, the repository it is built from (its parts library's name in
+#: other sites' ``uses.json``); ``used_by``, the base URLs of the sites whose
+#: ``uses.json`` its library pages read for their "Used in" lists.
+_site = {"title": DEFAULT_TITLE, "lede": DEFAULT_LEDE, "source": "", "used_by": []}
+#: Published at the site root: what this site's scripts take from other
+#: repositories' libraries, for those libraries' pages to list.
+USES_FILE = "uses.json"
 
 
 @dataclass
@@ -199,13 +205,20 @@ def _check_unique(products: list[Product]) -> None:
 
 
 def build_site(products: list[Product], site_dir: Path, *, title: str = DEFAULT_TITLE,
-               lede: str = DEFAULT_LEDE) -> Path:
+               lede: str = DEFAULT_LEDE, source: str = "", uses: list[dict] | None = None,
+               used_by: list[str] | None = None) -> Path:
     """Write the overview, a page per product, assembly and part, and every
     part's and assembled model's files.  ``title`` names the site (its
     overview heading, breadcrumb root and page titles); ``lede`` opens the
-    overview."""
+    overview.
+
+    ``uses.json`` at the root lists ``uses`` (this site's scripts' uses of
+    other repositories' library items: ``library``, ``item``, ``user``,
+    ``href``) under ``source``, the repository's name.  ``used_by`` names the
+    sites whose ``uses.json`` each library page fetches, in the browser, to
+    add their uses of the item to its "Used in" list."""
     site_dir = Path(site_dir)
-    _site.update(title=title, lede=lede)
+    _site.update(title=title, lede=lede, source=source, used_by=list(used_by or []))
     products = [p for p in products if p.n_parts or p.model]
     if not products:
         raise ValueError("no parts to publish")
@@ -226,6 +239,8 @@ def build_site(products: list[Product], site_dir: Path, *, title: str = DEFAULT_
         (site_dir / LIBRARY / "index.html").write_text(render_library(categories))
     index = site_dir / "index.html"
     index.write_text(render_overview(products))
+    (site_dir / USES_FILE).write_text(json.dumps(
+        {"source": source, "title": title, "uses": list(uses or [])}, indent=1) + "\n")
     (site_dir / ".nojekyll").write_text("")
     return index
 
@@ -438,17 +453,46 @@ def _library_use(product: Product, chain: tuple[Assembly, ...], root: str,
         return ""
     item = part or product.node(chain)
     call = f'load_library("{designation(product, chain, part)}")'
-    if item.used_in:
-        links = "".join(
-            f'<li><a href="{_e(root)}{"" if a.startswith(LIBRARY + "/") else "products/"}'
-            f'{_e(a)}/index.html"><code>{_e(a)}</code></a></li>' for a in item.used_in)
+    links = "".join(
+        f'<li><a href="{_e(root)}{"" if a.startswith(LIBRARY + "/") else "products/"}'
+        f'{_e(a)}/index.html"><code>{_e(a)}</code></a></li>' for a in item.used_in)
+    none = "<p class=muted{hidden}>Not placed in any product yet.</p>"
+    if _site["used_by"]:  # other repositories' uses, added in the browser
+        sources = _e(json.dumps(_site["used_by"]))
+        users = (f'<ul class=used-list data-library="{_e(_site["source"])}" '
+                 f'data-item="{_e(designation(product, chain, part))}" data-sources="{sources}">'
+                 f'{links}</ul>{none.format(hidden=" hidden" if links else "")}'
+                 f"<script>{_USED_BY_JS}</script>")
+    elif links:
         users = f"<ul class=used-list>{links}</ul>"
     else:
-        users = "<p class=muted>Not placed in any product yet.</p>"
+        users = none.format(hidden="")
     return (f"<section class=reuse><h2>Reuse</h2>"
             f"<p>Place it from any part or assembly script:</p>"
             f"<pre><code>{_e(call)}</code></pre>"
             f"<h3>Used in</h3>{users}</section>")
+
+
+#: Fills a library page's "Used in" list from the other sites' uses.json: each
+#: use of this library's item there becomes a link to the page that places it.
+_USED_BY_JS = """(function () {
+  var ul = document.currentScript.parentNode.querySelector("ul[data-sources]");
+  var none = ul.nextElementSibling;
+  JSON.parse(ul.dataset.sources).forEach(function (base) {
+    fetch(base + "uses.json").then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) {
+        (m && m.uses || []).forEach(function (u) {
+          if (u.library !== ul.dataset.library || u.item !== ul.dataset.item) return;
+          var li = document.createElement("li"), a = document.createElement("a"),
+              code = document.createElement("code");
+          a.href = new URL(u.href, base).href;
+          code.textContent = (m.source || base) + " · " + u.user;
+          a.appendChild(code); li.appendChild(a); ul.appendChild(li);
+          none.hidden = true;
+        });
+      }).catch(function () {});
+  });
+})();"""
 
 
 def _up(title: str, href: str) -> str:
