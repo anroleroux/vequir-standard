@@ -34,6 +34,12 @@ unit → power → standard.
 A change here moves the parts built from it in those repositories: rebuild
 them before pushing, and push them on the same branch name.
 
+Each item's page lists, under "Used in", the scripts that place it in the
+other repositories: `used-by.txt` names vequir-power's and vequir-unit's
+site, and the page reads their `uses.json` (which every site publishes) in
+the browser. When another repository starts using this library, add its site
+there.
+
 ## Working on it
 
 Clone neoBotics (the tool) beside this repository, install neobotics, and

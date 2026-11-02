@@ -1,0 +1,4 @@
+# Sites of the repositories that use this library: each item page reads
+# their uses.json and lists those uses under "Used in".
+https://anroleroux.co.za/vequir-power/
+https://anroleroux.co.za/vequir-unit/
