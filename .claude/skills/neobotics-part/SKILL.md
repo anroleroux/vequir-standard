@@ -1,14 +1,42 @@
 ---
 name: neobotics-part
-description: Add or change a 3D part, or an assembly's assembled model, in the neoBotics product catalogue from natural-language instructions, then build its CAD (B-rep, STEP, STL, views) and update the HTML site. Use whenever the user names a product, assembly and part designation (e.g. "PB6 / chassis / lid", "PB6-chassis-lid", "in PB6, assembly drive, sub-assembly left_wheel, part hub") or an assembly designation ("PB6 / chassis: assemble the lid on the box") together with modelling instructions, or asks to add, modify, remove, rename or rebuild a product, assembly, sub-assembly or part.
+description: Add or change a 3D part, or an assembly's assembled model, in the VequIR catalogues built with neoBotics (vequir-standard, vequir-power, vequir-unit) from natural-language instructions, then build its CAD (B-rep, STEP, STL, views) and update the HTML site. Use whenever the user names a product, assembly and part designation (e.g. "PB6 / chassis / lid", "PB6-chassis-lid", "in PB6, assembly drive, sub-assembly left_wheel, part hub") or an assembly designation ("PB6 / chassis: assemble the lid on the box") together with modelling instructions, or asks to add, modify, remove, rename or rebuild a product, assembly, sub-assembly or part.
 ---
 
 # Add or change a neoBotics part
 
-The catalogue is a product breakdown under `products/`, and each part is a
-CadQuery script written from a plain-language description. This skill takes
-the user's instructions for one part from words to a published 3D model:
-**description → part.py (B-rep code) → CAD files → HTML**.
+Each part is a CadQuery script written from a plain-language description.
+This skill takes the user's instructions for one part from words to a
+published 3D model: **description → part.py (B-rep code) → CAD files → HTML**.
+
+## Which repository
+
+neoBotics is the tool only (`src/neobotics`, its tests, this skill). The
+catalogue is split over three repositories, each with its own CI and its own
+product page (its catalogue site on GitHub Pages):
+
+| Repository | Holds | Page |
+| --- | --- | --- |
+| `vequir-standard` | `library/`: standard parts — `batteries/` (cells), `terminals/` (battery clips), `fasteners/` (screws) | anroleroux.co.za/vequir-standard |
+| `vequir-power` | `library/battery_holders/`: the single 18650 holder and the six-cell pack (assemblies), and their own parts (the holder body, the end strip and other brackets) | anroleroux.co.za/vequir-power |
+| `vequir-unit` | `products/`: VequIR's own units, such as the PB6 powerbank | anroleroux.co.za/vequir-unit |
+
+- Pick the repository by what the item is: a part made to a standard or a
+  maker's drawing goes in vequir-standard; a holder, bracket, strip or pack
+  in vequir-power; a product in vequir-unit. If it is unclear, ask.
+- A repository uses the others' libraries through `libraries.txt` at its
+  root: one library directory per line, relative to the file
+  (`../vequir-standard/library`). vequir-power lists vequir-standard;
+  vequir-unit lists both. `load_library` searches its own `library/` first,
+  then those. Dependencies only point down: unit → power → standard. Never
+  make vequir-standard use vequir-power.
+- So clone the repositories side by side (`neoBotics/`, `vequir-standard/`,
+  `vequir-power/`, `vequir-unit/`) and run every command from the root of
+  the repository being changed.
+- A change to a part that others use (the cell's diameter) is made in its
+  own repository and checked in the users too: rebuild them before
+  committing. Push all the touched repositories to the same branch name; CI
+  clones a sibling on that branch when it exists, else its default branch.
 
 ## The breakdown
 
@@ -54,18 +82,21 @@ library/<category>/<assembly>/<part>/...          its parts
   Scripts place it with `load_library("<category>/<item>")`, which takes the
   same path without `library/` and works from any depth. Use it in products
   rather than copying a library part.
-- Inside a library assembly, parts use `load_part` on each other as usual
-  (the body sizes itself from `../battery`).
-- Worked example: `library/battery_holders/single_18650_holder/`.
+- Inside a library assembly, parts use `load_part` on each other as usual,
+  and `load_library` for another library's items (the holder body sizes
+  itself from `load_library("batteries/cell_18650")`).
+- Worked example: vequir-power's `library/battery_holders/single_18650_holder/`.
 
 ## Steps
 
-0. **Set up, once per session**: `pip install -e ".[dev]"` (CadQuery is heavy,
-   so give it a few minutes). Check it with `neobotics --help`.
+0. **Set up, once per session**: `pip install -e "../neoBotics[dev]"` from the
+   catalogue repository (CadQuery is heavy, so give it a few minutes), and make
+   sure the repositories its `libraries.txt` names are cloned beside it.
+   Check it with `neobotics --help`.
 
 1. **Resolve the designation.** Split what the user gave into product, the
    assembly chain and the part, and normalise the slugs. List what exists with
-   `find products -name part.py` (and `ls` the product). Decide which levels
+   `find products library -name part.py` (and `ls` the product). Decide which levels
    are new and which already exist.
    - If the user's designation conflicts with the rules (for example, a part
      placed in an assembly that already has sub-assemblies), say so and propose
@@ -112,9 +143,10 @@ library/<category>/<assembly>/<part>/...          its parts
      fit itself (clearance, overlap) in named constants.
 
    Worked examples:
-   - `library/fasteners/m1_2x6_countersunk/part.py`: a standalone part;
-   - `products/PB6/chassis/lid/part.py`: a part sized from another with
-     `load_part`.
+   - vequir-standard's `library/fasteners/m1_2x6_countersunk/part.py`: a
+     standalone part;
+   - vequir-unit's `products/PB6/lid/part.py`: a part sized from another
+     with `load_part`.
 
 4b. **Assembled model (`assembly.py`)**, when the user asks for parts to be
    put together ("assemble the lid on top of the box"). Write
@@ -162,9 +194,10 @@ library/<category>/<assembly>/<part>/...          its parts
      example, holes that overlap an edge), choose the nearest sound value,
      record it under the docstring's assumptions, and tell the user.
 
-6. **Update the site.** Run `neobotics site products --out results --site site`.
+6. **Update the site.** Run `neobotics site --out results --site site`.
    It rebuilds every part, then writes one page per level:
-   - `site/index.html`: the overview, a card per product;
+   - `site/index.html`: the overview, a card per product (in a library
+     repository, the library's categories), titled from `site.md`;
    - `site/products/<PRODUCT>/index.html` and `.../<assembly>/index.html`:
      each level's contents as cards, then its assembled model;
    - `site/products/<PRODUCT>/.../<part>/index.html`: one page per part.
@@ -175,31 +208,36 @@ library/<category>/<assembly>/<part>/...          its parts
    Three.js loads from jsDelivr. If the sandbox blocks the CDN, the page falls
    back to the PNG views.
 
-7. **Test**: `python -m pytest -q`. This is needed only when code changed, but
-   it is cheap enough to run every time.
+7. **Test**: `python -m pytest -q tests` in the catalogue repository (its
+   checks of the real parts), and in neoBotics when its code changed. Update
+   a test whose numbers the change moves on purpose.
 
 8. **Commit and push.**
-   - Commit only `products/` changes (and code, if any). Never commit
-     `results/` or `site/`; they are build output and are git-ignored.
+   - Commit only `products/` or `library/` changes (and tests or code, if
+     any). Never commit `results/` or `site/`; they are build output and are
+     git-ignored.
    - Message: `Add PB6/chassis/lid: <one line>` or `Update …: <what changed>`.
-   - Push to the working branch. CI rebuilds every part and redeploys GitHub
-     Pages on push.
+   - Push to the working branch. That repository's CI rebuilds its parts and
+     redeploys its page on push.
+   - If the shop (`vequir`) sells the item, its still and meshes come over
+     with `make/neobotics.py`; see the shop's README.
 
 9. **Report back**, in a few lines:
    - the designation;
    - what was built: size and key features;
    - any assumptions you had to make;
-   - the page link: `https://anroleroux.github.io/neoBotics/products/<designation>/index.html`
-     (e.g. `.../products/PB6/chassis/base/index.html`).
-     For a library item it is `.../library/<category>/<item>/index.html`.
+   - the page link: `https://anroleroux.co.za/<repository>/products/<designation>/index.html`
+     (e.g. `https://anroleroux.co.za/vequir-unit/products/PB6/chassis/base/index.html`).
+     For a library item it is `.../<repository>/library/<category>/<item>/index.html`.
 
 ## Other changes
 
 - **Rename or move a part or assembly**: use `git mv` on the directory, then
   run steps 6–9. The designation changes with the path, so tell the user the
   new one.
-- **Remove**: `git rm -r` the directory, and search for `load_part` calls
-  that name it (`grep -rn load_part products`). If an assembly is left empty,
+- **Remove**: `git rm -r` the directory, and search for `load_part` and
+  `load_library` calls that name it, in every vequir repository
+  (`grep -rn "load_part\|load_library" ../vequir-*/products ../vequir-*/library`). If an assembly is left empty,
   remove it too. Then run steps 6–9.
 - **Change only a title or blurb**: edit `product.md` or `assembly.md`, or
   the first docstring line for a part, then run steps 6–9.

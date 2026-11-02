@@ -21,9 +21,12 @@ Two names are provided to every script:
                    the same for a reusable part or assembly in the parts
                    library, by its designation there
                    (``load_library("battery_holders/single_18650_holder")``), from any
-                   script at any depth.  The library is the ``library/``
-                   directory nearest above the calling script, or the one the
-                   ``NEOBOTICS_LIBRARY`` environment variable names.
+                   script at any depth.  It is looked for in each parts
+                   library in turn (see :func:`library_roots`): those the
+                   ``NEOBOTICS_LIBRARY`` environment variable names, the
+                   ``library/`` directory nearest above the calling script,
+                   then those the nearest ``libraries.txt`` above it lists —
+                   so a catalogue can use another repository's library.
 
 An assembly directory may hold an ``assembly.py`` whose ``result`` is a
 ``cq.Assembly``: the parts placed together.  It is checked shape by
@@ -95,9 +98,13 @@ class BuildResult:
 # in the child process
 # --------------------------------------------------------------------------
 SCRIPT_NAMES = ("part.py", "assembly.py")
-#: The parts library's directory name, and the variable that overrides where it is.
+#: The parts library's directory name, and the variable that names others
+#: (an ``os.pathsep``-separated list of library directories, searched first).
 LIBRARY_DIR = "library"
 LIBRARY_ENV = "NEOBOTICS_LIBRARY"
+#: A repository's list of the other parts libraries it uses, one directory per
+#: line, relative to the file (``../vequir-standard/library``); ``#`` comments.
+LIBRARIES_FILE = "libraries.txt"
 
 
 def script_in(directory: Path) -> Path | None:
@@ -108,17 +115,41 @@ def script_in(directory: Path) -> Path | None:
     return None
 
 
-def library_root(start: Path) -> Path | None:
-    """The parts library a script in ``start`` uses: ``$NEOBOTICS_LIBRARY``, else
-    the ``library/`` directory nearest above ``start``."""
-    if os.environ.get(LIBRARY_ENV):
-        return Path(os.environ[LIBRARY_ENV]).resolve()
-    for directory in [Path(start).resolve(), *Path(start).resolve().parents]:
+def read_libraries_file(path: Path) -> list[Path]:
+    """The library directories a ``libraries.txt`` lists, resolved against it."""
+    roots = []
+    for line in Path(path).read_text().splitlines():
+        line = line.split("#", 1)[0].strip()
+        if line:
+            roots.append((Path(path).parent / line).resolve())
+    return roots
+
+
+def library_roots(start: Path) -> list[Path]:
+    """The parts libraries a script in ``start`` uses, in the order
+    ``load_library`` searches them: each directory in ``$NEOBOTICS_LIBRARY``,
+    the ``library/`` directory nearest above ``start``, then each library the
+    nearest ``libraries.txt`` above ``start`` lists.  Missing directories are
+    left out; the first library that holds a designation provides it."""
+    roots: list[Path] = [Path(p).resolve() for p in
+                         os.environ.get(LIBRARY_ENV, "").split(os.pathsep) if p.strip()]
+    here = [Path(start).resolve(), *Path(start).resolve().parents]
+    for directory in here:
         if (directory / LIBRARY_DIR).is_dir():
-            return directory / LIBRARY_DIR
+            roots.append(directory / LIBRARY_DIR)
+            break
         if directory.name == LIBRARY_DIR:  # a script inside the library itself
-            return directory
-    return None
+            roots.append(directory)
+            break
+    for directory in here:
+        if (directory / LIBRARIES_FILE).is_file():
+            roots += read_libraries_file(directory / LIBRARIES_FILE)
+            break
+    unique: list[Path] = []
+    for root in roots:
+        if root.is_dir() and root not in unique:
+            unique.append(root)
+    return unique
 
 
 class _Loader:
@@ -154,11 +185,17 @@ class _Loader:
 
         def load_library(designation: str) -> SimpleNamespace:
             call = f"load_library({designation!r})"
-            root = library_root(directory)
-            if root is None:
-                raise PartError(f"{call}: no {LIBRARY_DIR}/ directory above {directory}; "
-                                f"set {LIBRARY_ENV} to the parts library")
-            return self.load((root / designation.strip("/")).resolve(), call)
+            roots = library_roots(directory)
+            if not roots:
+                raise PartError(f"{call}: no {LIBRARY_DIR}/ directory or {LIBRARIES_FILE} "
+                                f"above {directory}; set {LIBRARY_ENV} to the parts library")
+            wanted = designation.strip("/")
+            for root in roots:
+                if script_in(root / wanted) is not None:
+                    return self.load((root / wanted).resolve(), call)
+            searched = ", ".join(str(r) for r in roots)
+            raise PartError(f"{call}: no part.py or assembly.py for {wanted!r} in the "
+                            f"parts libraries searched: {searched}")
 
         return {"load_part": load_part, "load_library": load_library}
 

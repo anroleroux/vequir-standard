@@ -52,7 +52,7 @@ pip install -e ".[dev]"
 export ANTHROPIC_API_KEY=...        # or `ant auth login`
 
 # NL -> B-rep code -> CAD
-neobotics generate --description products/PB6/chassis/base/description.md --out results/base
+neobotics generate --description ../vequir-unit/products/PB6/lid/description.md --out results/lid
 neobotics generate "a 40 x 40 x 5 mm plate with four M3 holes on a 30 mm square" --out results/plate
 
 # only the CAD stage, for a script written or edited by hand (no model, no key)
@@ -60,15 +60,19 @@ neobotics cad tests/fixtures/nema17_bracket/part.py --out results/nema17_bracket
 
 # a shaded PNG of any BREP or STL (--view iso | rear_below)
 neobotics view results/nema17_bracket/cad/part.stl
+```
 
+In a catalogue repository (see below), from its root:
+
+```bash
 # build one catalogue part by its designation
-neobotics build PB6/chassis/lid
+neobotics build PB6/lid
 # or a reusable part or assembly in the parts library
 neobotics build library/battery_holders/single_18650_holder
 
 # build every part in the catalogue and the library, and render the site: an
 # overview page, then one page per product, assembly and part with its 3D viewer
-neobotics site products --out results --site site
+neobotics site --out results --site site
 ```
 
 ### Without an API key
@@ -80,42 +84,66 @@ Claude in a coding session) can read a part's `description.md`, write its
 for now. `generate` automates the same step once a key is
 set.
 
-### The catalogue
+### The catalogue repositories
+
+neoBotics is the tool. The parts it builds live in the VequIR catalogue
+repositories, each with its own CI and its own product page (its catalogue
+site on GitHub Pages):
+
+| Repository | Holds | Page |
+| --- | --- | --- |
+| [vequir-standard](https://github.com/anroleroux/vequir-standard) | `library/`: standard parts — `batteries/cell_18650`, `terminals/keystone_1107_1`, `fasteners/m1_2x6_countersunk` | [anroleroux.co.za/vequir-standard](https://anroleroux.co.za/vequir-standard/) |
+| [vequir-power](https://github.com/anroleroux/vequir-power) | `library/battery_holders/`: the single 18650 holder and the six-cell pack, and their parts (holder body, end strip) | [anroleroux.co.za/vequir-power](https://anroleroux.co.za/vequir-power/) |
+| [vequir-unit](https://github.com/anroleroux/vequir-unit) | `products/`: the PB6 powerbank | [anroleroux.co.za/vequir-unit](https://anroleroux.co.za/vequir-unit/) |
+
+A catalogue repository holds a product breakdown, `products/`, a parts
+library, `library/`, or both, plus a `site.md` (`# Title`, then the
+overview's lede). Clone them side by side with neoBotics:
+
+```
+neoBotics/  vequir-standard/  vequir-power/  vequir-unit/
+```
+
+#### Products
 
 Parts live in a product breakdown, `products/<PRODUCT>/<assembly>/.../<part>/`.
 Assemblies nest to any depth, and the leaf assemblies hold the parts. Each
 part has its `description.md` and `part.py`. `product.md` and `assembly.md`
-name and describe the levels above.
-
-- **PB6**, a powerbank, has:
-  - the assembly **Chassis**: a base driven by `l`, `b`, `h` and `wall`, its
-    charger boards, and the library's six-cell 18650 pack
-    (`battery_holders/pack_3x2`), which the chassis `assembly.py` sets on the
-    floor against the back wall.
-  - its own part, the **lid**, sized from the base.
-
-  `PB6/assembly.py` seats the lid on the chassis, and the build checks the fit.
-
-A part's designation is its path (`PB6/chassis/lid`).
+name and describe the levels above. A product, and any assembly, may hold an
+`assembly.py`: its contents placed together, checked for interference and
+contact. A part's designation is its path (`PB6/chassis/base`);
 `neobotics build <designation>` builds just that part, or an assembly's
 assembled model (`PB6/chassis`). A script can read another part's variables
-with `load_part("../base")`. See `products/README.md`.
+with `load_part("../base")`. See vequir-unit's README for the rules.
 
-### The parts library
+#### Parts libraries
 
 `library/` holds parts and assemblies kept for reuse in any product, filed by
 category: `library/<category>/<item>/`. A category is laid out like a product.
-For example, the 18650 battery holder `battery_holders/single_18650_holder` is an
-assembly: a holder body and its cell, with a battery clip at each end.
-Any script places a library item with
-`load_library("battery_holders/single_18650_holder")`, from any depth, and reads its
-variables as it would with `load_part`. The site has a page for the library,
-and each item's page shows the call that places it and the products that use
-it. See `library/README.md`.
+Any script places a library item with `load_library("<category>/<item>")`,
+from any depth, and reads its variables as it would with `load_part`.
+
+`load_library` searches several libraries, in order:
+
+1. each directory in `NEOBOTICS_LIBRARY` (an `os.pathsep`-separated list);
+2. the `library/` directory nearest above the calling script;
+3. each library the nearest `libraries.txt` above the script lists, one
+   directory per line, relative to the file (`../vequir-standard/library`).
+
+The first library holding the designation provides it. That is how one
+repository uses another's library: vequir-power's `libraries.txt` names
+vequir-standard's, so its holder takes its cell with
+`load_library("batteries/cell_18650")`; vequir-unit's names both. Each
+script resolves against its own repository, so a vequir-power part loaded
+from vequir-unit still finds vequir-standard through vequir-power's file.
+
+The site has a page for the library, and each item's page shows the call
+that places it and the products in the same repository that use it.
 
 In a Claude Code session, the `neobotics-part` skill
-(`.claude/skills/neobotics-part/SKILL.md`) takes a designation plus modelling
-instructions. It writes or edits the description and the script, builds and
+(`.claude/skills/neobotics-part/SKILL.md`, also in each catalogue
+repository) takes a designation plus modelling instructions. It picks the
+repository, writes or edits the description and the script, builds and
 checks the part, updates the site, and commits.
 
 `generate` options: `--max-attempts N` (scripts in all, repairs included),
@@ -172,7 +200,7 @@ same names can carry an assembly's mates or a study's loads.
 | `neobotics.cadview` | headless shaded rendering (numpy z-buffer, no OpenGL), adapted from topocombo's `cadview` |
 | `neobotics.pipeline` | lays out a run directory around the two stages |
 | `neobotics.site` | the static page: an interactive three.js view of each part's STL, its description, measurements, script and downloads |
-| `neobotics.catalog` | reads the `products/` breakdown (assemblies to any depth) and the `library/`, builds every part, renders the site |
+| `neobotics.catalog` | reads a catalogue's `products/` breakdown (assemblies to any depth) and its `library/`, builds every part, renders the site |
 | `neobotics.cli` | `neobotics generate / cad / build / view / site` |
 
 The model sits behind a small `Coder` interface (`(system, messages) ->
@@ -181,16 +209,27 @@ real CadQuery builds, with no network.
 
 ## CI and GitHub Pages
 
-`.github/workflows/cad.yml` runs on every push and pull request:
+`.github/workflows/test.yml` runs the tests on every push to `main` and
+`claude/**`. The tests use synthetic parts and the reference bracket, so
+they do not depend on any catalogue.
 
-1. it runs the tests;
-2. `neobotics site` builds every part under `products/` and `library/` and
-   renders the pages; a part that fails to build fails the job;
-3. it uploads the CAD files as the `parts` artifact.
+Each catalogue repository has its own `.github/workflows/cad.yml`. On a push
+it:
 
-On a push, it also deploys the site to GitHub Pages:
+1. clones neoBotics and the repositories its `libraries.txt` names beside the
+   checkout, on the same branch name when it exists there, else the default
+   branch;
+2. installs neobotics from that clone and runs the repository's tests (checks
+   of its real parts);
+3. builds every part with `neobotics site` and renders the pages; a part that
+   fails to build fails the job;
+4. uploads the CAD files as the `parts` artifact, and deploys the site to
+   GitHub Pages: that repository's product page.
 
-- `index.html`, the overview: one card per product;
+The site:
+
+- `index.html`, the overview: one card per product, then the library's
+  categories (in a library-only repository, the categories with pictures);
 - `products/<product>/index.html`, and one page per assembly below it: that
   level's contents as cards you can click into, then its assembled model with
   its fit; under the model's 3D view, each thing the assembly holds directly
@@ -208,9 +247,10 @@ Every page leads back up through a breadcrumb and a "Back to …" link. Links ar
 relative, so the site also works opened from a local folder. Pages
 must be set to deploy from GitHub Actions (Settings → Pages → Source).
 
-To generate a design with Claude in CI, add an `ANTHROPIC_API_KEY` repository
-secret and start the workflow by hand with `design` set to a part path such
-as `PB6/chassis/base` (see `products/README.md`).
+To generate a design with Claude in CI, add an `ANTHROPIC_API_KEY` secret to
+the catalogue repository and start its **cad** workflow by hand with
+`design` set to a part directory holding a `description.md`, such as
+`products/PB6/lid`.
 
 ## Safety
 

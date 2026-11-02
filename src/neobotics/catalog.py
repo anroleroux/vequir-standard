@@ -67,7 +67,7 @@ from pathlib import Path
 
 from .part import LIBRARY_DIR
 from .pipeline import run_script
-from .site import Assembly, Product, build_site, read_part
+from .site import DEFAULT_LEDE, DEFAULT_TITLE, Assembly, Product, build_site, read_part
 
 PART_SCRIPT = "part.py"
 ASSEMBLY_SCRIPT = "assembly.py"
@@ -79,6 +79,8 @@ _USES_LIBRARY = re.compile(r"""load_library\(\s*["']([^"']+)["']""")
 #: Where an assembly model is built and published, inside its assembly's
 #: directory; the leading underscore keeps it clear of every slug.
 ASSEMBLY_DIR = "_assembly"
+#: The site's title and lede, beside ``products/`` and ``library/``: "# Title", then the lede.
+SITE_FILE = "site.md"
 
 
 @dataclass
@@ -186,12 +188,30 @@ def library_for(root: Path) -> Path:
 
 
 def discover_all(root: Path, library: Path | None = None) -> list[Entry]:
-    """The products under ``root``, then the parts library (if there is one)."""
+    """The products under ``root``, then the parts library (if there is one).
+    Either may be missing (a repository may hold only a library, or only
+    products), but not both."""
+    root = Path(root)
     library = library_for(root) if library is None else Path(library)
-    entries = discover(root)
+    if not root.is_dir() and not library.is_dir():
+        raise FileNotFoundError(f"{root}: no such catalogue directory, and no parts "
+                                f"library at {library}")
+    entries = discover(root) if root.is_dir() else []
     if library.is_dir():
         entries += discover(library, LIBRARY)
     return entries
+
+
+def read_site_heading(root: Path, library: Path | None = None) -> tuple[str, str]:
+    """The site's (title, lede) from ``site.md`` beside the catalogue (the
+    repository root), else neoBotics' own."""
+    root = Path(root)
+    library = library_for(root) if library is None else Path(library)
+    for path in (root.parent / SITE_FILE, library.parent / SITE_FILE):
+        if path.is_file():
+            title, lede = read_heading(path, DEFAULT_TITLE)
+            return title, lede or DEFAULT_LEDE
+    return DEFAULT_TITLE, DEFAULT_LEDE
 
 
 def find(root: Path, designation: str, library: Path | None = None) -> Entry:
@@ -282,7 +302,8 @@ def build_catalog(root: Path, results: Path, site_dir: Path, log=print,
         name = entry.part or (entry.assemblies[-1] if entry.assemblies else entry.product)
         built.append((entry, read_part(out, name)))
     trees = _assemble({PRODUCTS: root, LIBRARY: library}, built, used_in(entries))
-    index = build_site(trees, site_dir)
+    title, lede = read_site_heading(root, library)
+    index = build_site(trees, site_dir, title=title, lede=lede)
     return index, failures
 
 
