@@ -23,7 +23,7 @@ Two names are provided to every script:
                    (``load_library("battery_holders/single_18650_holder")``), from any
                    script at any depth.  It is looked for in each parts
                    library in turn (see :func:`library_roots`): those the
-                   ``NEOBOTICS_LIBRARY`` environment variable names, the
+                   ``CAD_LIBRARY`` environment variable names, the
                    ``library/`` directory nearest above the calling script,
                    then those the nearest ``libraries.txt`` above it lists —
                    so a catalogue can use another repository's library.
@@ -43,7 +43,7 @@ itself is copied next to them, so what went into CadQuery is never implicit,
 and it opens as-is in CQ-editor.
 
 Scripts may come from a language model, so they are never run in this
-process: :func:`build_part` starts ``python -m neobotics.part`` in a child
+process: :func:`build_part` starts ``python -m cad.part`` in a child
 process with a timeout, and reads back a JSON summary.  The child does the
 checking — ``result`` exists and holds valid solids with volume, every region
 selects something — and either exports everything or reports the first
@@ -101,7 +101,7 @@ SCRIPT_NAMES = ("part.py", "assembly.py")
 #: The parts library's directory name, and the variable that names others
 #: (an ``os.pathsep``-separated list of library directories, searched first).
 LIBRARY_DIR = "library"
-LIBRARY_ENV = "NEOBOTICS_LIBRARY"
+LIBRARY_ENV = "CAD_LIBRARY"
 #: A repository's list of the other parts libraries it uses, one directory per
 #: line, relative to the file (``../vequir-standard/library``); ``#`` comments.
 LIBRARIES_FILE = "libraries.txt"
@@ -127,7 +127,7 @@ def read_libraries_file(path: Path) -> list[Path]:
 
 def library_roots(start: Path) -> list[Path]:
     """The parts libraries a script in ``start`` uses, in the order
-    ``load_library`` searches them: each directory in ``$NEOBOTICS_LIBRARY``,
+    ``load_library`` searches them: each directory in ``$CAD_LIBRARY``,
     the ``library/`` directory nearest above ``start``, then each library the
     nearest ``libraries.txt`` above ``start`` lists.  Missing directories are
     left out; the first library that holds a designation provides it."""
@@ -576,7 +576,7 @@ def build_part(script: Path, out_dir: Path, timeout: float = BUILD_TIMEOUT) -> B
     env = {**os.environ, "MPLBACKEND": "Agg"}
     try:
         done = subprocess.run(
-            [sys.executable, "-m", "neobotics.part", str(script), "--out", str(out_dir),
+            [sys.executable, "-m", "cad.part", str(script), "--out", str(out_dir),
              "--report", str(report_path)],
             capture_output=True, text=True, timeout=timeout, env=env, cwd=out_dir,
         )
@@ -595,7 +595,7 @@ def build_part(script: Path, out_dir: Path, timeout: float = BUILD_TIMEOUT) -> B
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m neobotics.part",
+        prog="python -m cad.part",
         description="Build one CadQuery part script in this process (the child side of build_part).",
     )
     parser.add_argument("script", type=Path)

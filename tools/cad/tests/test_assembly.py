@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from neobotics.catalog import build_catalog, discover, find
-from neobotics.part import build_part
+from cad.catalog import build_catalog, discover, find
+from cad.part import build_part
 
 BOX = """\
 \"\"\"Box.\"\"\"

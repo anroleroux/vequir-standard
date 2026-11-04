@@ -1,4 +1,4 @@
-"""Shaded pictures of CAD output as PNG, with no OpenGL: ``python -m neobotics.cadview``.
+"""Shaded pictures of CAD output as PNG, with no OpenGL: ``python -m cad.cadview``.
 
 Adapted from topocombo's ``cadview``: it reads what the pipeline exported — a
 part's BREP or STL — never the script that built it.  Shapes are tessellated
@@ -330,8 +330,8 @@ def render_stl(stl_path: Path, png_path: Path, title: str | None = None, view: s
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m neobotics.cadview",
-        description="Render a BREP or STL (from a neobotics run) to a shaded PNG.",
+        prog="python -m cad.cadview",
+        description="Render a BREP or STL (from a cad run) to a shaded PNG.",
     )
     parser.add_argument("source", type=Path, help=".brep or .stl file")
     parser.add_argument("--out", type=Path, help="PNG to write (default: next to the source)")

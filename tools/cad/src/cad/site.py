@@ -1,9 +1,9 @@
-"""A static HTML catalogue of built parts, for GitHub Pages: ``neobotics site``.
+"""A static HTML catalogue of built parts, for GitHub Pages: ``cad site``.
 
-A downstream consumer like :mod:`neobotics.cadview`: it reads run directories
+A downstream consumer like :mod:`cad.cadview`: it reads run directories
 (``description.md``, ``part.py``, ``cad/``) and never runs a script.  Parts are
 organised as a product breakdown — product -> assembly -> sub-assembly ... ->
-part, with parts allowed on the product itself; :mod:`neobotics.catalog`
+part, with parts allowed on the product itself; :mod:`cad.catalog`
 reads that tree from ``products/``.
 
 The site is one page per level, and each page shows only what is in it:
@@ -56,7 +56,7 @@ LIBRARY = "library"
 #: The site's title (the overview's heading, the breadcrumb's root, every
 #: page title's suffix) and the overview's lede, unless ``build_site`` is
 #: given others (a catalogue's ``site.md``).
-DEFAULT_TITLE = "neoBotics"
+DEFAULT_TITLE = "Parts catalogue"
 DEFAULT_LEDE = ("Parts described in plain language, written as CadQuery B-rep code, "
                 "built and checked as exact solids.")
 #: The site being written, as ``build_site`` sets it: its title and lede;
@@ -139,7 +139,7 @@ class Product(Assembly):
 
 
 def read_part(run_dir: Path, name: str | None = None) -> Part:
-    """A part from a run directory: ``cad/`` from ``neobotics cad`` or ``generate``.
+    """A part from a run directory: ``cad/`` from ``cad cad`` or ``generate``.
 
     The description is ``description.md`` in the run directory, or next to the
     script the run was built from; it may be missing.
@@ -428,7 +428,7 @@ def _contents(product: Product, chain: tuple[Assembly, ...]) -> str:
 
 def _breadcrumb(product: Product, chain: tuple[Assembly, ...], root: str,
                 current: str | None) -> str:
-    """neoBotics › PB6 › Chassis › … (neoBotics › Parts library › Battery holders
+    """Title › PB6 › Chassis › … (Title › Parts library › Battery holders
     › … in the library) — every level a link but the page itself."""
     levels = [(_site["title"], f"{root}index.html")]
     if product.in_library:
@@ -524,8 +524,8 @@ def _page(title: str, description: str, body: str, *, viewer: bool) -> str:
 </head>
 <body>
 {body}
-<footer class=wrap><p class=muted>Built by <code>neobotics site</code> from
-<a href="https://github.com/anroleroux/vequir-standard/tree/main/neobotics">neoBotics</a>. Units are millimetres; z is up.</p></footer>
+<footer class=wrap><p class=muted>Built by <code>cad site</code> from
+the <a href="https://github.com/anroleroux/vequir-standard/tree/main/tools/cad">VequIR CAD tool</a>. Units are millimetres; z is up.</p></footer>
 {script}
 </body>
 </html>

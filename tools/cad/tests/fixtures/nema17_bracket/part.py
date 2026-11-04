@@ -1,7 +1,7 @@
 """An L-bracket that holds a NEMA 17 stepper motor.
 
 The hand-written reference for the CAD stage: the same contract a generated
-script follows (see neobotics.nl2cad.SYSTEM_PROMPT), so `neobotics cad` and the
+script follows (see cad.nl2cad.SYSTEM_PROMPT), so `cad cad` and the
 tests run without a model.
 
 Assumptions where the description is silent:

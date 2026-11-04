@@ -8,8 +8,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from neobotics.cadview import stl_triangles
-from neobotics.part import build_part
+from cad.cadview import stl_triangles
+from cad.part import build_part
 
 EXAMPLE = Path(__file__).resolve().parent / "fixtures" / "nema17_bracket" / "part.py"
 

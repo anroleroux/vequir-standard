@@ -7,9 +7,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from neobotics import nl2cad
-from neobotics.nl2cad import APPROVED, GenerationError, extract_script, generate, is_approved
-from neobotics.pipeline import run_description
+from cad import nl2cad
+from cad.nl2cad import APPROVED, GenerationError, extract_script, generate, is_approved
+from cad.pipeline import run_description
 
 GOOD = """\
 \"\"\"A 40 x 40 x 5 mm plate with four M3 holes.\"\"\"

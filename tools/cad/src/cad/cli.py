@@ -1,23 +1,23 @@
-"""Command line: ``neobotics generate | cad | build | view | site``.
+"""Command line: ``cad generate | cad | build | view | site``.
 
     # NL -> CadQuery script -> BREP / STEP / STL / PNG, with Claude
-    neobotics generate --description products/PB6/chassis/base/description.md --out results/base
-    neobotics generate "a 40 x 40 x 5 mm plate with four M3 holes" --out results/plate
+    cad generate --description products/PB6/chassis/base/description.md --out results/base
+    cad generate "a 40 x 40 x 5 mm plate with four M3 holes" --out results/plate
 
     # only the CAD stage, for a script written or edited by hand
-    neobotics cad tests/fixtures/nema17_bracket/part.py --out results/nema17_bracket
+    cad cad tests/fixtures/nema17_bracket/part.py --out results/nema17_bracket
 
     # a shaded PNG of any BREP or STL
-    neobotics view results/nema17_bracket/cad/part.stl
+    cad view results/nema17_bracket/cad/part.stl
 
     # build one catalogue part by its designation: product/assembly/.../part
-    neobotics build PB6/chassis/lid
+    cad build PB6/chassis/lid
     # or a reusable one in the parts library: library/category/item/...
-    neobotics build library/battery_holders/single_18650_holder
+    cad build library/battery_holders/single_18650_holder
 
     # build every part under products/ and render the catalogue site
     # (what GitHub Pages serves)
-    neobotics site products --out results --site site
+    cad site products --out results --site site
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def _print_build(out: Path, summary: dict, files: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="neobotics",
+        prog="cad",
         description="Natural language -> CadQuery (B-rep) script -> CAD files.",
     )
     sub = parser.add_subparsers(dest="command", required=True)

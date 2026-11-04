@@ -3,8 +3,8 @@ name: cad
 # Builds the standard parts library (batteries, terminals, fasteners) and publishes its product page: the catalogue site at
 # anroleroux.co.za/vequir-standard (the user site's custom domain covers it).
 #
-# neoBotics, the tool that builds the parts and the site, lives here under
-# neobotics/ (its own tests run too).  vequir-power and vequir-unit install
+# The CAD tool, which builds the parts and the site, lives here under
+# tools/cad/ (its own tests run too).  vequir-power and vequir-unit install
 # it from their clone of this repository.
 
 on:
@@ -44,11 +44,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq libgl1 libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1
 
-      - name: Install neobotics
-        run: python -m pip install --upgrade pip && python -m pip install -e "./neobotics[dev]"
+      - name: Install the CAD tool
+        run: python -m pip install --upgrade pip && python -m pip install -e "./tools/cad[dev]"
 
       - name: Run the tool's tests
-        working-directory: neobotics
+        working-directory: tools/cad
         run: python -m pytest -q
 
       - name: Run tests
@@ -56,7 +56,7 @@ jobs:
 
       # every part and assembly here; a part that fails to build fails the job
       - name: Build the parts and the site
-        run: neobotics site --out results --site site
+        run: cad site --out results --site site
 
       - name: Upload the parts
         uses: actions/upload-artifact@v4
@@ -106,14 +106,14 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq libgl1 libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1
 
-      - name: Install neobotics
-        run: python -m pip install --upgrade pip && python -m pip install ./neobotics
+      - name: Install the CAD tool
+        run: python -m pip install --upgrade pip && python -m pip install ./tools/cad
 
       - name: Generate the part
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DESIGN: ${{ inputs.design }}
-        run: neobotics generate --description "$DESIGN/description.md" --out "results/$DESIGN"
+        run: cad generate --description "$DESIGN/description.md" --out "results/$DESIGN"
 
       - name: Upload the generated part
         if: always()

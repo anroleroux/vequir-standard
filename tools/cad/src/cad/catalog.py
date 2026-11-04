@@ -38,7 +38,7 @@ reuse in any product, filed by category::
 
 A category follows a product's rules: it holds parts and assemblies.  Any
 script places a library item with ``load_library("battery_holders/single_18650_holder")``
-(see :mod:`neobotics.part`); the site lists, on each library item's page,
+(see :mod:`cad.part`); the site lists, on each library item's page,
 the products that use it.
 
 A product holds assemblies and parts of its own (``PB6/lid``).  An assembly
@@ -53,7 +53,7 @@ title (their ``#`` heading) and blurb; without them the slug is the title.
 Directories starting with ``.`` or ``_`` are ignored, and everything appears
 in alphabetical order of its slug.
 
-:func:`build_catalog` builds every part with :func:`neobotics.pipeline.run_script`
+:func:`build_catalog` builds every part with :func:`cad.pipeline.run_script`
 into ``results/<designation>/`` and renders the site from them.
 """
 
@@ -111,7 +111,7 @@ class Entry:
 
     @property
     def address(self) -> str:
-        """The designation with its section, as ``neobotics build`` takes it:
+        """The designation with its section, as ``cad build`` takes it:
         ``PB6/chassis/lid``, ``library/battery_holders/single_18650_holder``."""
         return self.designation if self.section == PRODUCTS else f"{self.section}/{self.designation}"
 
@@ -208,7 +208,7 @@ def discover_all(root: Path, library: Path | None = None) -> list[Entry]:
 
 def read_site_heading(root: Path, library: Path | None = None) -> tuple[str, str]:
     """The site's (title, lede) from ``site.md`` beside the catalogue (the
-    repository root), else neoBotics' own."""
+    repository root), else the tool's own."""
     root = Path(root)
     library = library_for(root) if library is None else Path(library)
     for path in (root.parent / SITE_FILE, library.parent / SITE_FILE):
@@ -366,7 +366,7 @@ def build_catalog(root: Path, results: Path, site_dir: Path, log=print,
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="neobotics site",
+        prog="cad site",
         description="Build every part in a products/ tree and render the catalogue site.",
     )
     parser.add_argument("root", type=Path, nargs="?", default=Path("products"),

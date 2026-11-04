@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from neobotics.catalog import build_catalog, discover_all, find, used_in
-from neobotics.part import build_part, library_roots
+from cad.catalog import build_catalog, discover_all, find, used_in
+from cad.part import build_part, library_roots
 
 PLATE = """\
 \"\"\"Plate.\"\"\"
@@ -80,15 +80,15 @@ def test_load_library_names_what_is_missing(tmp_path, monkeypatch):
     assert not result.ok and "load_library('fasteners/nut'): no part.py or assembly.py" in result.error
     # no library/ above the script, and none named: say how to point at one
     _write(tmp_path / "loose" / "part.py", 'x = load_library("fasteners/clip")\n')
-    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    monkeypatch.delenv("CAD_LIBRARY", raising=False)
     result = build_part(tmp_path / "loose" / "part.py", tmp_path / "out2")
-    assert not result.ok and "NEOBOTICS_LIBRARY" in result.error
+    assert not result.ok and "CAD_LIBRARY" in result.error
 
 
 def test_the_library_can_live_anywhere(tmp_path, monkeypatch):
     _tree(tmp_path / "repo")
     _write(tmp_path / "elsewhere" / "part.py", USER)
-    monkeypatch.setenv("NEOBOTICS_LIBRARY", str(tmp_path / "repo" / "library"))
+    monkeypatch.setenv("CAD_LIBRARY", str(tmp_path / "repo" / "library"))
     assert build_part(tmp_path / "elsewhere" / "part.py", tmp_path / "out").ok
 
 
@@ -159,7 +159,7 @@ def _repos(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def test_libraries_txt_names_other_repositories_libraries(tmp_path, monkeypatch):
-    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    monkeypatch.delenv("CAD_LIBRARY", raising=False)
     standard, power = _repos(tmp_path)
     # its own library first, then the listed ones, from any depth
     assert library_roots(power / "products" / "P2" / "frame" / "mount") == [
@@ -176,7 +176,7 @@ def test_the_environment_list_is_searched_first(tmp_path, monkeypatch):
     standard, power = _repos(tmp_path)
     elsewhere = tmp_path / "elsewhere" / "library"
     _write(elsewhere / "fasteners" / "clip" / "plate" / "part.py", PLATE.replace("20.0", "30.0"))
-    monkeypatch.setenv("NEOBOTICS_LIBRARY", os.pathsep.join([str(elsewhere), str(tmp_path / "nope")]))
+    monkeypatch.setenv("CAD_LIBRARY", os.pathsep.join([str(elsewhere), str(tmp_path / "nope")]))
     assert library_roots(power / "library") == [
         elsewhere, power / "library", standard / "library"]  # missing ones left out
     summary = _summary(build_part(power / "library/straps/strap/part.py", tmp_path / "out"))
@@ -184,7 +184,7 @@ def test_the_environment_list_is_searched_first(tmp_path, monkeypatch):
 
 
 def test_a_missing_item_names_every_library_searched(tmp_path, monkeypatch):
-    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    monkeypatch.delenv("CAD_LIBRARY", raising=False)
     standard, power = _repos(tmp_path)
     _write(power / "library" / "straps" / "bad" / "part.py", 'x = load_library("fasteners/nut")\n')
     result = build_part(power / "library/straps/bad/part.py", tmp_path / "out")
@@ -195,7 +195,7 @@ def test_a_missing_item_names_every_library_searched(tmp_path, monkeypatch):
 def test_a_library_only_repository_builds_its_site(tmp_path, monkeypatch):
     """No products/: the overview is the library, with pictures, under the
     title and lede from site.md."""
-    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    monkeypatch.delenv("CAD_LIBRARY", raising=False)
     standard, _ = _repos(tmp_path)
     shutil.rmtree(standard / "products")
     _write(standard / "site.md", "# Acme Standard <parts>\n\nClips & pins.\n")
@@ -217,7 +217,7 @@ def test_a_site_publishes_its_uses_of_other_libraries(tmp_path, monkeypatch):
     """uses.json: each use of another repository's library item, resolved as
     load_library resolves it, with the page of the script that places it;
     uses of the repository's own library are left out."""
-    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    monkeypatch.delenv("CAD_LIBRARY", raising=False)
     _, power = _repos(tmp_path)
     _, failures = build_catalog(power / "products", tmp_path / "results", tmp_path / "site",
                                 log=lambda _: None)
@@ -237,7 +237,7 @@ def test_a_site_publishes_its_uses_of_other_libraries(tmp_path, monkeypatch):
 def test_library_pages_read_the_sites_that_use_them(tmp_path, monkeypatch):
     """With used-by.txt, each library item's "Used in" list names the sites
     whose uses.json the page reads, and the item to look for there."""
-    monkeypatch.delenv("NEOBOTICS_LIBRARY", raising=False)
+    monkeypatch.delenv("CAD_LIBRARY", raising=False)
     standard, _ = _repos(tmp_path)
     _write(standard / "used-by.txt", "# sites that use this library\nhttps://example.org/power\n")
     _, failures = build_catalog(standard / "products", tmp_path / "results", tmp_path / "site",

@@ -1,9 +1,9 @@
 ---
-name: neobotics-part
-description: Add or change a 3D part, or an assembly's assembled model, in the VequIR catalogues built with neoBotics (vequir-standard, vequir-power, vequir-unit) from natural-language instructions, then build its CAD (B-rep, STEP, STL, views) and update the HTML site. Use whenever the user names a product, assembly and part designation (e.g. "PB6 / chassis / lid", "PB6-chassis-lid", "in PB6, assembly drive, sub-assembly left_wheel, part hub") or an assembly designation ("PB6 / chassis: assemble the lid on the box") together with modelling instructions, or asks to add, modify, remove, rename or rebuild a product, assembly, sub-assembly or part.
+name: cad-part
+description: Add or change a 3D part, or an assembly's assembled model, in the VequIR catalogues built with the CAD tool (vequir-standard, vequir-power, vequir-unit) from natural-language instructions, then build its CAD (B-rep, STEP, STL, views) and update the HTML site. Use whenever the user names a product, assembly and part designation (e.g. "PB6 / chassis / lid", "PB6-chassis-lid", "in PB6, assembly drive, sub-assembly left_wheel, part hub") or an assembly designation ("PB6 / chassis: assemble the lid on the box") together with modelling instructions, or asks to add, modify, remove, rename or rebuild a product, assembly, sub-assembly or part.
 ---
 
-# Add or change a neoBotics part
+# Add or change a CAD part
 
 Each part is a CadQuery script written from a plain-language description.
 This skill takes the user's instructions for one part from words to a
@@ -11,8 +11,8 @@ published 3D model: **description → part.py (B-rep code) → CAD files → HTM
 
 ## Which repository
 
-neoBotics is the tool. It lives in vequir-standard under `neobotics/`
-(`neobotics/src/neobotics` and its tests); vequir-power and vequir-unit
+The CAD tool (the `cad` command) lives in vequir-standard under
+`tools/cad/` (`tools/cad/src/cad` and its tests); vequir-power and vequir-unit
 install it from their clone of vequir-standard. The catalogue is split over
 three repositories, each with its own CI and its own
 product page (its catalogue site on GitHub Pages):
@@ -65,7 +65,7 @@ products/<PRODUCT>/<assembly>/assembly.py                 optional: the assemble
 - Product directories keep the user's code as given (`PB6`). Assembly and part
   slugs are lowercase with underscores (`motor_mounts`, `left_wheel`). Titles
   for display go in the markdown files.
-- `neobotics site` refuses a breakdown that breaks these rules, and names the
+- `cad site` refuses a breakdown that breaks these rules, and names the
   offending directory.
 
 ## The parts library
@@ -84,7 +84,7 @@ library/<category>/<assembly>/<part>/...          its parts
 - A category follows a product's rules: it holds parts and assemblies. Its
   slug is lowercase with underscores and plural (`battery_holders`,
   `motor_mounts`). Write its `category.md` when it is new.
-- Its designation for `neobotics build` is `library/<category>/<item>/...`.
+- Its designation for `cad build` is `library/<category>/<item>/...`.
   Scripts place it with `load_library("<category>/<item>")`, which takes the
   same path without `library/` and works from any depth. Use it in products
   rather than copying a library part.
@@ -95,10 +95,10 @@ library/<category>/<assembly>/<part>/...          its parts
 
 ## Steps
 
-0. **Set up, once per session**: `pip install -e "../vequir-standard/neobotics[dev]"`
-   from the catalogue repository (`./neobotics[dev]` in vequir-standard) (CadQuery is heavy, so give it a few minutes), and make
+0. **Set up, once per session**: `pip install -e "../vequir-standard/tools/cad[dev]"`
+   from the catalogue repository (`./tools/cad[dev]` in vequir-standard) (CadQuery is heavy, so give it a few minutes), and make
    sure the repositories its `libraries.txt` names are cloned beside it.
-   Check it with `neobotics --help`.
+   Check it with `cad --help`.
 
 1. **Resolve the designation.** Split what the user gave into product, the
    assembly chain and the part, and normalise the slugs. List what exists with
@@ -124,7 +124,7 @@ library/<category>/<assembly>/<part>/...          its parts
      verbatim. Don't rewrite the whole description.
 
 4. **Write or update `part.py`.** Follow the part-script contract, which is the
-   same one `neobotics.nl2cad.SYSTEM_PROMPT` gives the model:
+   same one `cad.nl2cad.SYSTEM_PROMPT` gives the model:
    - Import only `cadquery as cq` (and `math` if needed).
    - Open with a docstring:
      - **First line:** the part's title (it becomes the heading on the page).
@@ -172,7 +172,7 @@ library/<category>/<assembly>/<part>/...          its parts
      from the parts' own variables (`base.h - lid.lip_depth`), never from
      copied numbers. Give each part a `color`: the PNGs and the 3D viewer
      use it (a component without one gets a palette colour). Set `regions = {}`.
-   - **Build:** `neobotics build <PRODUCT>/<assembly>`. The summary lists:
+   - **Build:** `cad build <PRODUCT>/<assembly>`. The summary lists:
      - **components**: what the assembly holds directly (a part, or a whole
        sub-assembly as one), by name, with volume, bounding box and the
        meshes (STL and colour) of every shape inside;
@@ -183,7 +183,7 @@ library/<category>/<assembly>/<part>/...          its parts
    - **Check:** fix any interference or missing contact, then look at both
      PNGs, where each component has its own colour.
 
-5. **Build and check it.** Run `neobotics build <designation>`. For a part it
+5. **Build and check it.** Run `cad build <designation>`. For a part it
    writes `results/<designation>/cad/` (for an assembly model,
    `results/<designation>/_assembly/cad/`):
    - `part.brep`, `part.step`, `part.stl`;
@@ -200,7 +200,7 @@ library/<category>/<assembly>/<part>/...          its parts
      example, holes that overlap an edge), choose the nearest sound value,
      record it under the docstring's assumptions, and tell the user.
 
-6. **Update the site.** Run `neobotics site --out results --site site`.
+6. **Update the site.** Run `cad site --out results --site site`.
    It rebuilds every part, then writes one page per level:
    - `site/index.html`: the overview, a card per product (in a library
      repository, the library's categories), titled from `site.md`;
@@ -215,8 +215,8 @@ library/<category>/<assembly>/<part>/...          its parts
    back to the PNG views.
 
 7. **Test**: `python -m pytest -q tests` in the catalogue repository (its
-   checks of the real parts), and in vequir-standard's `neobotics/`
-   (`cd neobotics && python -m pytest -q`) when the tool's code changed. Update
+   checks of the real parts), and in vequir-standard's `tools/cad/`
+   (`cd tools/cad && python -m pytest -q`) when the tool's code changed. Update
    a test whose numbers the change moves on purpose.
 
 8. **Commit and push.**
@@ -227,7 +227,7 @@ library/<category>/<assembly>/<part>/...          its parts
    - Push to the working branch. That repository's CI rebuilds its parts and
      redeploys its page on push.
    - If the shop (`vequir`) sells the item, its still and meshes come over
-     with `make/neobotics.py`; see the shop's README.
+     with `make/cad.py`; see the shop's README.
 
 9. **Report back**, in a few lines:
    - the designation;

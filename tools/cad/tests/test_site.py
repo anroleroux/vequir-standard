@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from neobotics.catalog import build_catalog, discover, find, read_heading
-from neobotics.cli import main as cli_main
-from neobotics.pipeline import run_script
-from neobotics.site import DOWNLOADS, Assembly, Product, build_site, read_part
+from cad.catalog import build_catalog, discover, find, read_heading
+from cad.cli import main as cli_main
+from cad.pipeline import run_script
+from cad.site import DOWNLOADS, Assembly, Product, build_site, read_part
 
 BRACKET = Path(__file__).resolve().parent / "fixtures" / "nema17_bracket"
 
@@ -92,7 +92,7 @@ def test_a_part_holds_no_directories(tmp_path):
     ("import cadquery as cq\n", "base plate"),
 ])
 def test_part_title_is_the_first_docstring_line(script, title):
-    from neobotics.site import _title
+    from cad.site import _title
 
     assert _title(script, "base_plate") == title
 

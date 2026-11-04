@@ -1,11 +1,11 @@
 """Natural language -> CadQuery part script, with Claude.
 
-The model writes the part script (:mod:`neobotics.part` describes the
+The model writes the part script (:mod:`cad.part` describes the
 contract); this module only talks to it and keeps the conversation.  The loop
 is one append-only conversation:
 
 1. the description goes in, a complete script in one ```python block comes out;
-2. the script is built in a child process (:func:`neobotics.part.build_part`);
+2. the script is built in a child process (:func:`cad.part.build_part`);
    if it fails, the error goes back and the model sends a corrected script —
    up to ``max_attempts`` scripts in all;
 3. once it builds, the two shaded views and the measured summary (bounding
@@ -128,7 +128,7 @@ class Generation:
     """The outcome of :func:`generate`."""
 
     script: str
-    build: Any  # neobotics.part.BuildResult of the final script
+    build: Any  # cad.part.BuildResult of the final script
     attempts: list[Attempt] = field(default_factory=list)
     approved: bool = False
     usage: dict[str, int] = field(default_factory=dict)
@@ -217,7 +217,7 @@ def generate(
 ) -> Generation:
     """Turn a description into a part script that builds, and build it.
 
-    ``build(script_path, out_dir)`` is :func:`neobotics.part.build_part` (or a
+    ``build(script_path, out_dir)`` is :func:`cad.part.build_part` (or a
     stand-in); every script the model sends is written to
     ``work_dir/attempts/NN.py`` and built into ``work_dir/attempts/NN/``.
     Raises :class:`GenerationError` when no script builds within

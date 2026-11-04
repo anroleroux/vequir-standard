@@ -1,4 +1,4 @@
-# neoBotics
+# CAD tool
 
 Natural language in, a 3D CAD model out. A description of a part goes to
 Claude. Claude writes a [CadQuery](https://github.com/CadQuery/cadquery)
@@ -9,7 +9,7 @@ shaded PNG views.
 The CAD stage follows [topocombo](https://github.com/anroleroux/topocombo): a
 part is a CadQuery script that assigns the part to `result` and names places on
 it in `regions`. A script opens as-is in CQ-editor. The pipeline reads every
-fact it needs from the built shape, never from parameters. neoBotics adds the
+fact it needs from the built shape, never from parameters. The tool adds the
 stage in front, which writes that script from a description.
 
 ## Pipeline
@@ -52,27 +52,27 @@ pip install -e ".[dev]"
 export ANTHROPIC_API_KEY=...        # or `ant auth login`
 
 # NL -> B-rep code -> CAD
-neobotics generate --description ../../vequir-unit/products/PB6/lid/description.md --out results/lid
-neobotics generate "a 40 x 40 x 5 mm plate with four M3 holes on a 30 mm square" --out results/plate
+cad generate --description ../../vequir-unit/products/PB6/lid/description.md --out results/lid
+cad generate "a 40 x 40 x 5 mm plate with four M3 holes on a 30 mm square" --out results/plate
 
 # only the CAD stage, for a script written or edited by hand (no model, no key)
-neobotics cad tests/fixtures/nema17_bracket/part.py --out results/nema17_bracket
+cad cad tests/fixtures/nema17_bracket/part.py --out results/nema17_bracket
 
 # a shaded PNG of any BREP or STL (--view iso | rear_below)
-neobotics view results/nema17_bracket/cad/part.stl
+cad view results/nema17_bracket/cad/part.stl
 ```
 
 In a catalogue repository (see below), from its root:
 
 ```bash
 # build one catalogue part by its designation
-neobotics build PB6/lid
+cad build PB6/lid
 # or a reusable part or assembly in the parts library
-neobotics build library/battery_holders/single_18650_holder
+cad build library/battery_holders/single_18650_holder
 
 # build every part in the catalogue and the library, and render the site: an
 # overview page, then one page per product, assembly and part with its 3D viewer
-neobotics site --out results --site site
+cad site --out results --site site
 ```
 
 ### Without an API key
@@ -86,10 +86,9 @@ set.
 
 ### The catalogue repositories
 
-neoBotics is the tool. It lives in vequir-standard, under `neobotics/` (it
-had its own repository, anroleroux/neoBotics, until it moved here). The parts
-it builds live in the VequIR catalogue repositories, each with its own CI and its own product page (its catalogue
-site on GitHub Pages):
+The CAD tool lives in vequir-standard, under `tools/cad/`. The parts it
+builds live in the VequIR catalogue repositories, each with its own CI and
+its own product page (its catalogue site on GitHub Pages):
 
 | Repository | Holds | Page |
 | --- | --- | --- |
@@ -99,7 +98,7 @@ site on GitHub Pages):
 
 A catalogue repository holds a product breakdown, `products/`, a parts
 library, `library/`, or both, plus a `site.md` (`# Title`, then the
-overview's lede). Clone them side by side; neoBotics comes with
+overview's lede). Clone them side by side; the CAD tool comes with
 vequir-standard:
 
 ```
@@ -114,7 +113,7 @@ part has its `description.md` and `part.py`. `product.md` and `assembly.md`
 name and describe the levels above. A product, and any assembly, may hold an
 `assembly.py`: its contents placed together, checked for interference and
 contact. A part's designation is its path (`PB6/chassis/base`);
-`neobotics build <designation>` builds just that part, or an assembly's
+`cad build <designation>` builds just that part, or an assembly's
 assembled model (`PB6/chassis`). A script can read another part's variables
 with `load_part("../base")`. See vequir-unit's README for the rules.
 
@@ -127,7 +126,7 @@ from any depth, and reads its variables as it would with `load_part`.
 
 `load_library` searches several libraries, in order:
 
-1. each directory in `NEOBOTICS_LIBRARY` (an `os.pathsep`-separated list);
+1. each directory in `CAD_LIBRARY` (an `os.pathsep`-separated list);
 2. the `library/` directory nearest above the calling script;
 3. each library the nearest `libraries.txt` above the script lists, one
    directory per line, relative to the file (`../vequir-standard/library`).
@@ -151,8 +150,8 @@ that places it and every script that uses it, in any repository:
   sites' `uses.json` in the browser and add their uses to "Used in". So the
   list stays current when a user changes, without rebuilding the library.
 
-In a Claude Code session, the `neobotics-part` skill
-(`.claude/skills/neobotics-part/SKILL.md`, also in each catalogue
+In a Claude Code session, the `cad-part` skill
+(`.claude/skills/cad-part/SKILL.md`, also in each catalogue
 repository) takes a designation plus modelling instructions. It picks the
 repository, writes or edits the description and the script, builds and
 checks the part, updates the site, and commits.
@@ -206,13 +205,13 @@ same names can carry an assembly's mates or a study's loads.
 
 | Module | Role |
 | --- | --- |
-| `neobotics.nl2cad` | the prompt, the Claude client (`ClaudeCoder`), the generate → build → repair → review loop |
-| `neobotics.part` | runs a part script in a child process, checks it, exports BREP / STEP / STL / PNG and `summary.json` |
-| `neobotics.cadview` | headless shaded rendering (numpy z-buffer, no OpenGL), adapted from topocombo's `cadview` |
-| `neobotics.pipeline` | lays out a run directory around the two stages |
-| `neobotics.site` | the static page: an interactive three.js view of each part's STL, its description, measurements, script and downloads |
-| `neobotics.catalog` | reads a catalogue's `products/` breakdown (assemblies to any depth) and its `library/`, builds every part, renders the site |
-| `neobotics.cli` | `neobotics generate / cad / build / view / site` |
+| `cad.nl2cad` | the prompt, the Claude client (`ClaudeCoder`), the generate → build → repair → review loop |
+| `cad.part` | runs a part script in a child process, checks it, exports BREP / STEP / STL / PNG and `summary.json` |
+| `cad.cadview` | headless shaded rendering (numpy z-buffer, no OpenGL), adapted from topocombo's `cadview` |
+| `cad.pipeline` | lays out a run directory around the two stages |
+| `cad.site` | the static page: an interactive three.js view of each part's STL, its description, measurements, script and downloads |
+| `cad.catalog` | reads a catalogue's `products/` breakdown (assemblies to any depth) and its `library/`, builds every part, renders the site |
+| `cad.cli` | `cad generate / cad / build / view / site` |
 
 The model sits behind a small `Coder` interface (`(system, messages) ->
 (text, content)`), so the tests drive the whole loop with scripted replies and
@@ -221,7 +220,7 @@ real CadQuery builds, with no network.
 ## CI and GitHub Pages
 
 vequir-standard's `.github/workflows/cad.yml` runs these tests (from
-`neobotics/`) on every push to `main` and `claude/**`, before its own. The
+`tools/cad/`) on every push to `main` and `claude/**`, before its own. The
 tests use synthetic parts and the reference bracket, so they do not depend on
 any catalogue.
 
@@ -230,11 +229,11 @@ it:
 
 1. clones the repositories its `libraries.txt` names beside the checkout, on
    the same branch name when it exists there, else the default branch;
-   vequir-standard, the bottom of the chain, carries neoBotics;
-2. installs neobotics (`neobotics/` in vequir-standard, its own or the
+   vequir-standard, the bottom of the chain, carries the CAD tool;
+2. installs the CAD tool (`tools/cad/` in vequir-standard, its own or the
    clone) and runs the repository's tests (checks
    of its real parts);
-3. builds every part with `neobotics site` and renders the pages; a part that
+3. builds every part with `cad site` and renders the pages; a part that
    fails to build fails the job;
 4. uploads the CAD files as the `parts` artifact, and deploys the site to
    GitHub Pages: that repository's product page.

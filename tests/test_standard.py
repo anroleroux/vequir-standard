@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from neobotics.catalog import discover_all
-from neobotics.part import build_part
+from cad.catalog import discover_all
+from cad.part import build_part
 
 ROOT = Path(__file__).resolve().parents[1]
 LIBRARY = ROOT / "library"
