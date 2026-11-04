@@ -1,0 +1,44 @@
+name: test
+
+# neoBotics is the tool; the parts it builds live in the VequIR catalogue
+# repositories (vequir-standard, vequir-power, vequir-unit), which build them
+# and publish their own pages.  Here CI only runs the tests, which use
+# synthetic parts and the reference bracket in tests/fixtures.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# a newer push to the same branch supersedes a running test
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      # CadQuery's OpenCascade (OCP) and VTK wheels link against these even headless
+      - name: Install system libraries for CadQuery
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libgl1 libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1
+
+      - name: Install neobotics
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Run tests
+        run: python -m pytest -q
