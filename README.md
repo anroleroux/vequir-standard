@@ -1,6 +1,6 @@
 # vequir-standard
 
-VequIR's standard parts, as a [neoBotics](https://github.com/anroleroux/neoBotics)
+VequIR's standard parts, as a [neoBotics](neobotics/)
 parts library: parts made to a standard or a maker's drawing, written as
 CadQuery B-rep code from a plain-language description and built and checked
 as exact solids (BREP, STEP, STL, shaded views).
@@ -42,13 +42,15 @@ there.
 
 ## Working on it
 
-Clone neoBotics (the tool) beside this repository, install neobotics, and
-run everything from this repository's root:
+neoBotics, the tool that builds the parts and the pages, lives here under
+[`neobotics/`](neobotics/) (it had its own repository until it moved here).
+Install it and run everything from this repository's root:
 
 ```bash
-git clone https://github.com/anroleroux/neoBotics ../neoBotics
 python -m venv .venv && source .venv/bin/activate
-pip install -e "../neoBotics[dev]"
+pip install -e "./neobotics[dev]"
+
+(cd neobotics && python -m pytest -q)         # the tool's own tests
 
 python -m pytest -q tests                     # checks of the real parts
 neobotics build library/fasteners/m1_2x6_countersunk   # one part
@@ -62,8 +64,8 @@ a designation plus modelling instructions through the same steps.
 ## CI and the product page
 
 `.github/workflows/cad.yml` runs on every push to `main` and `claude/**`. It
-clones neoBotics beside the checkout (the branch of the same name when it
-exists there, else the default branch), runs the tests, builds every part,
+installs neoBotics from `neobotics/`, runs its tests and this repository's,
+builds every part,
 and deploys the site to GitHub Pages: **anroleroux.co.za/vequir-standard**,
 the product page. A part that fails to build fails the job.
 Settings → Pages → Source must be GitHub Actions.

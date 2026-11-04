@@ -11,8 +11,10 @@ published 3D model: **description → part.py (B-rep code) → CAD files → HTM
 
 ## Which repository
 
-neoBotics is the tool only (`src/neobotics`, its tests, this skill). The
-catalogue is split over three repositories, each with its own CI and its own
+neoBotics is the tool. It lives in vequir-standard under `neobotics/`
+(`neobotics/src/neobotics` and its tests); vequir-power and vequir-unit
+install it from their clone of vequir-standard. The catalogue is split over
+three repositories, each with its own CI and its own
 product page (its catalogue site on GitHub Pages):
 
 | Repository | Holds | Page |
@@ -34,7 +36,7 @@ product page (its catalogue site on GitHub Pages):
   lists the sites of the repositories that use it, and its item pages read
   their `uses.json` for "Used in". When a repository starts using another's
   library, add its site to that library's `used-by.txt`.
-- So clone the repositories side by side (`neoBotics/`, `vequir-standard/`,
+- So clone the repositories side by side (`vequir-standard/`,
   `vequir-power/`, `vequir-unit/`) and run every command from the root of
   the repository being changed.
 - A change to a part that others use (the cell's diameter) is made in its
@@ -93,8 +95,8 @@ library/<category>/<assembly>/<part>/...          its parts
 
 ## Steps
 
-0. **Set up, once per session**: `pip install -e "../neoBotics[dev]"` from the
-   catalogue repository (CadQuery is heavy, so give it a few minutes), and make
+0. **Set up, once per session**: `pip install -e "../vequir-standard/neobotics[dev]"`
+   from the catalogue repository (`./neobotics[dev]` in vequir-standard) (CadQuery is heavy, so give it a few minutes), and make
    sure the repositories its `libraries.txt` names are cloned beside it.
    Check it with `neobotics --help`.
 
@@ -213,7 +215,8 @@ library/<category>/<assembly>/<part>/...          its parts
    back to the PNG views.
 
 7. **Test**: `python -m pytest -q tests` in the catalogue repository (its
-   checks of the real parts), and in neoBotics when its code changed. Update
+   checks of the real parts), and in vequir-standard's `neobotics/`
+   (`cd neobotics && python -m pytest -q`) when the tool's code changed. Update
    a test whose numbers the change moves on purpose.
 
 8. **Commit and push.**

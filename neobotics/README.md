@@ -52,7 +52,7 @@ pip install -e ".[dev]"
 export ANTHROPIC_API_KEY=...        # or `ant auth login`
 
 # NL -> B-rep code -> CAD
-neobotics generate --description ../vequir-unit/products/PB6/lid/description.md --out results/lid
+neobotics generate --description ../../vequir-unit/products/PB6/lid/description.md --out results/lid
 neobotics generate "a 40 x 40 x 5 mm plate with four M3 holes on a 30 mm square" --out results/plate
 
 # only the CAD stage, for a script written or edited by hand (no model, no key)
@@ -86,8 +86,9 @@ set.
 
 ### The catalogue repositories
 
-neoBotics is the tool. The parts it builds live in the VequIR catalogue
-repositories, each with its own CI and its own product page (its catalogue
+neoBotics is the tool. It lives in vequir-standard, under `neobotics/` (it
+had its own repository, anroleroux/neoBotics, until it moved here). The parts
+it builds live in the VequIR catalogue repositories, each with its own CI and its own product page (its catalogue
 site on GitHub Pages):
 
 | Repository | Holds | Page |
@@ -98,10 +99,11 @@ site on GitHub Pages):
 
 A catalogue repository holds a product breakdown, `products/`, a parts
 library, `library/`, or both, plus a `site.md` (`# Title`, then the
-overview's lede). Clone them side by side with neoBotics:
+overview's lede). Clone them side by side; neoBotics comes with
+vequir-standard:
 
 ```
-neoBotics/  vequir-standard/  vequir-power/  vequir-unit/
+vequir-standard/  vequir-power/  vequir-unit/
 ```
 
 #### Products
@@ -218,17 +220,19 @@ real CadQuery builds, with no network.
 
 ## CI and GitHub Pages
 
-`.github/workflows/test.yml` runs the tests on every push to `main` and
-`claude/**`. The tests use synthetic parts and the reference bracket, so
-they do not depend on any catalogue.
+vequir-standard's `.github/workflows/cad.yml` runs these tests (from
+`neobotics/`) on every push to `main` and `claude/**`, before its own. The
+tests use synthetic parts and the reference bracket, so they do not depend on
+any catalogue.
 
 Each catalogue repository has its own `.github/workflows/cad.yml`. On a push
 it:
 
-1. clones neoBotics and the repositories its `libraries.txt` names beside the
-   checkout, on the same branch name when it exists there, else the default
-   branch;
-2. installs neobotics from that clone and runs the repository's tests (checks
+1. clones the repositories its `libraries.txt` names beside the checkout, on
+   the same branch name when it exists there, else the default branch;
+   vequir-standard, the bottom of the chain, carries neoBotics;
+2. installs neobotics (`neobotics/` in vequir-standard, its own or the
+   clone) and runs the repository's tests (checks
    of its real parts);
 3. builds every part with `neobotics site` and renders the pages; a part that
    fails to build fails the job;

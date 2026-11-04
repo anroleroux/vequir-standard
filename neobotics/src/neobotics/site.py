@@ -525,7 +525,7 @@ def _page(title: str, description: str, body: str, *, viewer: bool) -> str:
 <body>
 {body}
 <footer class=wrap><p class=muted>Built by <code>neobotics site</code> from
-<a href="https://github.com/anroleroux/neoBotics">anroleroux/neoBotics</a>. Units are millimetres; z is up.</p></footer>
+<a href="https://github.com/anroleroux/vequir-standard/tree/main/neobotics">neoBotics</a>. Units are millimetres; z is up.</p></footer>
 {script}
 </body>
 </html>
