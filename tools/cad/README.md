@@ -132,7 +132,14 @@ from any depth, and reads its variables as it would with `load_part`.
 1. each directory in `CAD_LIBRARY` (an `os.pathsep`-separated list);
 2. the `library/` directory nearest above the calling script;
 3. each library the nearest `libraries.txt` above the script lists, one
-   directory per line, relative to the file (`../vequir-standard/library`).
+   directory per line, relative to the file, optionally followed by the site
+   that publishes it
+   (`../vequir-standard/library https://anroleroux.co.za/vequir-standard/`).
+
+An assembled model's page lists the parts and assemblies it places (each
+`load_part` or `load_library` whose `.result` the script uses), once each,
+under "Parts in it": each links to its page, on this site or, for another
+repository's library item, on the site `libraries.txt` names for it.
 
 The first library holding the designation provides it. That is how one
 repository uses another's library: vequir-power's `libraries.txt` names

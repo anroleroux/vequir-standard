@@ -250,3 +250,40 @@ def test_library_pages_read_the_sites_that_use_them(tmp_path, monkeypatch):
     assert "<p class=muted>Not placed in any product yet.</p>" in pin  # until a site says so
     clip = (tmp_path / "site/library/fasteners/clip/index.html").read_text()
     assert "<p class=muted hidden>Not placed" in clip  # placed locally, by P1's bracket
+
+
+def test_an_assembly_page_links_each_part_it_places_once(tmp_path, monkeypatch):
+    """"Parts in it": every part and library item the assembly places (its
+    ``.result`` added), once, in order, each a link to its page: on this site
+    for its own, on the other library's site when ``libraries.txt`` names it.
+    A load only read for sizes is not listed."""
+    monkeypatch.delenv("CAD_LIBRARY", raising=False)
+    _, power = _repos(tmp_path)
+    _write(power / "libraries.txt", "../standard/library https://example.com/standard\n")
+    _write(power / "products" / "P3" / "base" / "part.py", PLATE)
+    _write(power / "products" / "P3" / "assembly.py", '''\
+"""P3."""
+import cadquery as cq
+
+base = load_part("base")
+strap = load_library("straps/strap")
+clip = load_library("fasteners/clip")
+plate = load_library("fasteners/clip/plate")  # only for its size
+result = cq.Assembly(name="P3").add(base.result, name="base")
+for i in range(3):
+    result.add(clip.result, name=f"clip_{i}", loc=cq.Location((0, 0, plate.t + 5 * i)))
+result.add(strap.result, name="strap", loc=cq.Location((0, 0, 30)))
+''')
+    _, failures = build_catalog(power / "products", tmp_path / "results", tmp_path / "site",
+                                log=lambda _: None)
+    assert not failures
+    page = (tmp_path / "site/products/P3/index.html").read_text()
+    listed = page[page.index("<h4>Parts in it"):]
+    listed = listed[:listed.index("</ul>")]
+    assert '<span class=count>3</span>' in listed
+    assert '<a href="../../products/P3/base/index.html">Plate</a> <code>P3/base</code>' in listed
+    assert ('<a href="../../library/straps/strap/index.html">Strap round a clip</a> '
+            '<code>library/straps/strap</code>') in listed
+    assert ('<a href="https://example.com/standard/library/fasteners/clip/index.html">Clip</a> '
+            '<code>standard · fasteners/clip</code>') in listed
+    assert "fasteners/clip/plate" not in listed

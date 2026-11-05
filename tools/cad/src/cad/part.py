@@ -115,14 +115,34 @@ def script_in(directory: Path) -> Path | None:
     return None
 
 
+def _libraries_lines(path: Path) -> list[tuple[Path, str]]:
+    """(library directory, its site's base URL or "") for each line of a
+    ``libraries.txt``: the directory relative to the file, then optionally the
+    site that publishes it (``../vequir-standard/library https://…/vequir-standard/``)."""
+    lines = []
+    for line in Path(path).read_text().splitlines():
+        words = line.split("#", 1)[0].split()
+        if words:
+            site = words[1] if len(words) > 1 else ""
+            if site and not site.endswith("/"):
+                site += "/"
+            lines.append(((Path(path).parent / words[0]).resolve(), site))
+    return lines
+
+
 def read_libraries_file(path: Path) -> list[Path]:
     """The library directories a ``libraries.txt`` lists, resolved against it."""
-    roots = []
-    for line in Path(path).read_text().splitlines():
-        line = line.split("#", 1)[0].strip()
-        if line:
-            roots.append((Path(path).parent / line).resolve())
-    return roots
+    return [root for root, _ in _libraries_lines(path)]
+
+
+def library_sites(start: Path) -> dict[Path, str]:
+    """Library directory -> its site's base URL, as the nearest
+    ``libraries.txt`` above ``start`` gives them (libraries it gives none for
+    are left out)."""
+    for directory in [Path(start).resolve(), *Path(start).resolve().parents]:
+        if (directory / LIBRARIES_FILE).is_file():
+            return {root: site for root, site in _libraries_lines(directory / LIBRARIES_FILE) if site}
+    return {}
 
 
 def library_roots(start: Path) -> list[Path]:

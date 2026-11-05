@@ -82,6 +82,7 @@ class Part:
     cad_dir: Path
     script_name: str = "part.py"
     used_in: list[str] = field(default_factory=list)  # a library part: who places it
+    placed: list[dict] = field(default_factory=list)  # an assembled model: what it places
 
 
 @dataclass
@@ -346,7 +347,24 @@ def _chips(parts: list[dict]) -> list[tuple[str, int, list[int]]]:
     return chips
 
 
-def _detail(part: Part, base: str, *, model: bool = False) -> str:
+def _placed_list(part: Part, root: str) -> str:
+    """An assembled model's parts and assemblies, once each, each a link to its
+    page (on this site, or on the library's own site)."""
+    if not part.placed:
+        return ""
+    items = []
+    for item in part.placed:
+        href = item["href"]
+        if href and "://" not in href:
+            href = root + href
+        title = (f'<a href="{_e(href)}">{_e(item["title"])}</a>' if href
+                 else _e(item["title"]))
+        items.append(f"<li>{title} <code>{_e(item['label'])}</code></li>")
+    return (f"<h4>Parts in it <span class=count>{len(items)}</span></h4>"
+            f"<ul class=placed-list>{''.join(items)}</ul>")
+
+
+def _detail(part: Part, base: str, *, model: bool = False, root: str = "") -> str:
     """The 3D view, facts, downloads and script of a part or an assembled model;
     ``base`` is where its files are, relative to the page."""
     prefix = f"{base}/" if base else ""
@@ -372,7 +390,7 @@ def _detail(part: Part, base: str, *, model: bool = False) -> str:
         f"<div class=description><h4>Description</h4>{_paragraphs(part.description)}</div>"
         if part.description else ""
     )
-    extra = _components_table(part.summary) if model else ""
+    extra = (_placed_list(part, root) + _components_table(part.summary)) if model else ""
     return f"""
 <section class="part{' model' if model else ''}">
   <div class=part-grid>
@@ -593,7 +611,7 @@ def render_node(product: Product, chain: tuple[Assembly, ...] = ()) -> str:
     if node.model:
         model = (f'<h2 class=section-title>Assembled model '
                  f'<span class=muted>{_e(node.model.title)}</span></h2>'
-                 + _detail(node.model, ASSEMBLY_DIR, model=True))
+                 + _detail(node.model, ASSEMBLY_DIR, model=True, root=root))
     blurb = _paragraphs(node.blurb) if node.blurb else ""
     body = f"""<header class="site-head compact">
   <div class=wrap>
@@ -880,6 +898,9 @@ overflow:hidden;background:var(--panel);text-decoration:none;color:var(--ink)}
 .fit-list .thread{color:var(--muted)}
 .fit-list .thread::before{content:"⌇ ";color:var(--muted)}
 .fit-list li+li{margin-top:6px}
+.placed-list{list-style:none;padding:0;margin:0 0 16px;font-size:.92rem;display:grid;gap:6px}
+.placed-list li{padding:6px 10px;border-radius:8px;border:1px solid var(--line)}
+.placed-list code{color:var(--muted);font-size:.82em;margin-left:6px}
 .reuse{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:24px 0;padding:16px 20px}
 .reuse h2{font-size:1.1rem;margin:0 0 6px}
 .reuse h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}

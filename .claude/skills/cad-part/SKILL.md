@@ -29,8 +29,10 @@ product page (its catalogue site on GitHub Pages):
   strip or pack in vequir-power; a product's enclosure parts and its
   assembly in vequir-unit. If it is unclear, ask.
 - A repository uses the others' libraries through `libraries.txt` at its
-  root: one library directory per line, relative to the file
-  (`../vequir-standard/library`). vequir-power lists vequir-standard;
+  root: one library directory per line, relative to the file, then the site
+  that publishes it
+  (`../vequir-standard/library https://anroleroux.co.za/vequir-standard/`);
+  an assembly's page links what it places to that site. vequir-power lists vequir-standard;
   vequir-unit lists both. `load_library` searches its own `library/` first,
   then those. Dependencies only point down: unit → power → standard. Never
   make vequir-standard use vequir-power.
