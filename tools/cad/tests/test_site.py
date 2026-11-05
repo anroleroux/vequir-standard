@@ -10,7 +10,7 @@ import pytest
 from cad.catalog import build_catalog, discover, find, read_heading
 from cad.cli import main as cli_main
 from cad.pipeline import run_script
-from cad.site import DOWNLOADS, Assembly, Product, build_site, read_part
+from cad.site import DOWNLOADS, Assembly, Product, _chips, build_site, read_part
 
 BRACKET = Path(__file__).resolve().parent / "fixtures" / "nema17_bracket"
 
@@ -211,3 +211,14 @@ def test_viewers_draw_coordinate_crosshairs(catalogue):
     page = _page(catalogue, "Z9", "cover")
     assert "function crosshairs(" in page and "scene.add(axes)" in page
     assert "axesToggle(figure, axes)" in page
+
+
+def test_copies_of_a_component_share_a_toggle_when_there_are_more_than_two():
+    names = ["pack/upper_1", "pack/upper_2", "pack/upper_3", "pack/beam_1", "pack/beam_2",
+             "pack/screw_front_01", "pack/screw_front_02", "pack/screw_front_03", "pack/bms",
+             "pack/clamp_1_1", "pack/clamp_1_2", "pack/clamp_2_1", "pack/clamp_2_2"]
+    chips = _chips([{"name": n} for n in names])
+    assert [(n, k) for n, k, _ in chips] == [
+        ("pack/upper", 3), ("pack/beam_1", 1), ("pack/beam_2", 1), ("pack/screw_front", 3),
+        ("pack/bms", 1), ("pack/clamp", 4)]
+    assert chips[-1][2] == [9, 10, 11, 12]

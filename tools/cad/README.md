@@ -112,7 +112,10 @@ Assemblies nest to any depth, and the leaf assemblies hold the parts. Each
 part has its `description.md` and `part.py`. `product.md` and `assembly.md`
 name and describe the levels above. A product, and any assembly, may hold an
 `assembly.py`: its contents placed together, checked for interference and
-contact. A part's designation is its path (`PB6/chassis/base`);
+contact. A screw forming its thread in a tap hole is marked as a thread, not
+counted as interference on the site. In the 3D view's toggles, components
+named alike but for a copy number (`screw_01`, `screw_02`, ...) share one
+toggle, marked "×n", when there are more than two. A part's designation is its path (`PB6/chassis/base`);
 `cad build <designation>` builds just that part, or an assembly's
 assembled model (`PB6/chassis`). A script can read another part's variables
 with `load_part("../base")`. See vequir-unit's README for the rules.

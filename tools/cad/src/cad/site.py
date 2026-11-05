@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -290,17 +291,25 @@ def _summary_rows(summary: dict) -> str:
 
 
 def _components_table(summary: dict) -> str:
-    """An assembled model's components and whether any of them overlap."""
+    """An assembled model's components and whether any of them overlap.
+
+    Screws forming their threads in tap holes overlap by design: they are
+    left out of the interference, with one line saying how many there are."""
     rows = "".join(
         f"<tr><th scope=row>{_e(c['name'])}</th><td>{_num(c['volume_mm3'])} mm³</td></tr>"
         for c in summary.get("components", [])
     )
-    clashes = summary.get("interference", [])
+    every = summary.get("interference", [])
+    clashes = [c for c in every if not c.get("thread")]
+    threads = len(every) - len(clashes)
     if clashes:
         status = "".join(f"<li class=clash>{_e(c['a'])} and {_e(c['b'])} overlap by "
                          f"{_num(c['volume_mm3'])} mm³</li>" for c in clashes)
     else:
         status = "<li class=fit>No interference: no two components share volume.</li>"
+    if threads:
+        status += (f"<li class=thread>{_e(_plural(threads, 'screw thread'))} formed in "
+                   f"{'its tap hole' if threads == 1 else 'their tap holes'}, not counted.</li>")
     contacts = summary.get("contacts", [])
     status += "".join(f"<li class=touch>{_e(c['a'])} and {_e(c['b'])} touch over "
                       f"{_num(c['area_mm2'])} mm²</li>" for c in contacts)
@@ -311,6 +320,30 @@ def _components_table(summary: dict) -> str:
     return (f'<details class="fit-details{" clashing" if clashes else ""}"{" open" if clashes else ""}>'
             f"<summary><h4>Components and fit</h4><span class=fit-line>{_e(line)}</span></summary>"
             f"<table>{rows}</table><ul class=fit-list>{status}</ul></details>")
+
+
+REPEAT = re.compile(r"(_\d+)+$")  # a copy's number: battery_1, screw_front_01, clamp_1_2
+
+
+def _chips(parts: list[dict]) -> list[tuple[str, int, list[int]]]:
+    """The viewer's toggles for an assembled model's components: (name, count,
+    component indices).  Components named alike but for their copy numbers
+    (screw_01, screw_02, ...) share one toggle when there are more than two of
+    them, named without the number; the rest keep a toggle each."""
+    stems: dict[str, list[int]] = {}
+    for i, c in enumerate(parts):
+        stems.setdefault(REPEAT.sub("", c["name"]), []).append(i)
+    chips, seen = [], set()
+    for i, c in enumerate(parts):
+        stem = REPEAT.sub("", c["name"])
+        members = stems[stem]
+        if len(members) > 2:
+            if stem not in seen:
+                seen.add(stem)
+                chips.append((stem, len(members), members))
+        else:
+            chips.append((c["name"], 1, [i]))
+    return chips
 
 
 def _detail(part: Part, base: str, *, model: bool = False) -> str:
@@ -327,10 +360,13 @@ def _detail(part: Part, base: str, *, model: bool = False) -> str:
     stl = " ".join(f"{prefix}{m['stl']}" for m in meshes) or f"{prefix}part.stl"
     # an assembled model's components (what was added to it directly), for the
     # viewer's show/see-through controls, and its meshes' colours and components
-    names = f' data-names="{_e(" ".join(c["name"] for c in parts))}"' if parts else ""
+    chips = _chips(parts)
+    chip_of = {i: k for k, (_, _, members) in enumerate(chips) for i in members}
+    names = (f' data-names="{_e(" ".join(n for n, _, _ in chips))}"'
+             f' data-counts="{" ".join(str(n) for _, n, _ in chips)}"' if parts else "")
     colors = (f' data-colors="{_e(" ".join(m["color"] for m in meshes))}"'
               if meshes and all(m.get("color") for m in meshes) else "")
-    groups = (f' data-groups="{" ".join(str(i) for i, c in enumerate(parts) for _ in c["meshes"])}"'
+    groups = (f' data-groups="{" ".join(str(chip_of[i]) for i, c in enumerate(parts) for _ in c["meshes"])}"'
               if parts else "")
     description = (
         f"<div class=description><h4>Description</h4>{_paragraphs(part.description)}</div>"
@@ -841,6 +877,8 @@ overflow:hidden;background:var(--panel);text-decoration:none;color:var(--ink)}
 .fit-list .fit::before{content:"✓ ";color:#2e8b57;font-weight:700}
 .fit-list .clash::before{content:"✕ ";color:#c0392b;font-weight:700}
 .fit-list .touch::before{content:"⇵ ";color:var(--muted)}
+.fit-list .thread{color:var(--muted)}
+.fit-list .thread::before{content:"⌇ ";color:var(--muted)}
 .fit-list li+li{margin-top:6px}
 .reuse{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:24px 0;padding:16px 20px}
 .reuse h2{font-size:1.1rem;margin:0 0 6px}
@@ -981,9 +1019,10 @@ function section(figure, parts, size, renderer) {
 }
 
 // one chip per component under the view (what the assembly holds directly, so
-// a sub-assembly is one chip for all its meshes): a checkbox shows or hides it,
-// the half-disc button makes it see-through; a single part gets that button alone
-function layers(figure, parts, groups, names) {
+// a sub-assembly is one chip for all its meshes; copies of one, more than two,
+// share a chip marked "×n"): a checkbox shows or hides it, the half-disc
+// button makes it see-through; a single part gets that button alone
+function layers(figure, parts, groups, names, counts) {
   const bar = document.createElement("div");
   bar.className = "layers";
   const chips = names ? names.map((_, i) => parts.filter((_, m) => groups[m] === i)) : [parts];
@@ -1009,7 +1048,7 @@ function layers(figure, parts, groups, names) {
         swatch.style.background = "#" + hex;
         label.append(swatch);
       });
-      label.append(names[i].split("/").pop());
+      label.append(names[i].split("/").pop() + (counts && counts[i] > 1 ? " ×" + counts[i] : ""));
       chip.append(label);
     }
     const ghost = document.createElement("button");
@@ -1078,7 +1117,9 @@ function mount(figure) {
     axesToggle(figure, axes);
     section(figure, parts, box.getSize(new THREE.Vector3()), renderer);
     const groups = figure.dataset.groups ? figure.dataset.groups.split(" ").map(Number) : null;
-    layers(figure, parts, groups, names && groups && groups.length === parts.length ? names : null);
+    const counts = figure.dataset.counts ? figure.dataset.counts.split(" ").map(Number) : null;
+    layers(figure, parts, groups, names && groups && groups.length === parts.length ? names : null,
+           counts);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;

@@ -177,7 +177,9 @@ library/<category>/<assembly>/<part>/...          its parts
        sub-assembly as one), by name, with volume, bounding box and the
        meshes (STL and colour) of every shape inside;
      - **interference**: pairs of components that share volume. It must be
-       empty unless an overlap is intended;
+       empty unless an overlap is intended. A screw forming its thread in a
+       tap hole (a thin coaxial ring of overlap) is marked `"thread": true`;
+       the site leaves those out and counts them on one line;
      - **contacts**: pairs touching over an area, in mm². A seated lid shows
        its rim area.
    - **Check:** fix any interference or missing contact, then look at both
