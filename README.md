@@ -13,6 +13,7 @@ Product page: **[anroleroux.co.za/vequir-standard](https://anroleroux.co.za/vequ
 | --- | --- |
 | `batteries/cell_18650` | an 18650 lithium-ion cell, 18.4 × 65 mm, standing on its negative end |
 | `terminals/keystone_1107_1` | a Keystone 1107-1 battery clip with a solder lug |
+| `fasteners/m1_2x3_countersunk` | an M1.2 × 3 countersunk screw |
 | `fasteners/m1_2x6_countersunk` | an M1.2 × 6 countersunk screw |
 
 ```
