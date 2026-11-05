@@ -92,9 +92,9 @@ its own product page (its catalogue site on GitHub Pages):
 
 | Repository | Holds | Page |
 | --- | --- | --- |
-| [vequir-standard](https://github.com/anroleroux/vequir-standard) | `library/`: standard parts — `batteries/cell_18650`, `terminals/keystone_1107_1`, `fasteners/m1_2x6_countersunk` | [anroleroux.co.za/vequir-standard](https://anroleroux.co.za/vequir-standard/) |
-| [vequir-power](https://github.com/anroleroux/vequir-power) | `library/battery_holders/`: the single 18650 holder and the six-cell pack, and their parts (holder body, end strip) | [anroleroux.co.za/vequir-power](https://anroleroux.co.za/vequir-power/) |
-| [vequir-unit](https://github.com/anroleroux/vequir-unit) | `products/`: the PB6 powerbank | [anroleroux.co.za/vequir-unit](https://anroleroux.co.za/vequir-unit/) |
+| [vequir-standard](https://github.com/anroleroux/vequir-standard) | `library/`: bought-in parts — `power/` (cell, clip, BMS, chargers), `hardware/` (screws), `electronics/` (Pico 2 W) | [anroleroux.co.za/vequir-standard](https://anroleroux.co.za/vequir-standard/) |
+| [vequir-power](https://github.com/anroleroux/vequir-power) | `library/`: `battery_holders/` (the single 18650 holder, the six-cell pack) and `brackets/` (end strip, clamping beam, BMS clamp) | [anroleroux.co.za/vequir-power](https://anroleroux.co.za/vequir-power/) |
+| [vequir-unit](https://github.com/anroleroux/vequir-unit) | `products/`: the PB6 powerbank's enclosure and its assembly | [anroleroux.co.za/vequir-unit](https://anroleroux.co.za/vequir-unit/) |
 
 A catalogue repository holds a product breakdown, `products/`, a parts
 library, `library/`, or both, plus a `site.md` (`# Title`, then the
@@ -137,7 +137,7 @@ from any depth, and reads its variables as it would with `load_part`.
 The first library holding the designation provides it. That is how one
 repository uses another's library: vequir-power's `libraries.txt` names
 vequir-standard's, so its holder takes its cell with
-`load_library("batteries/cell_18650")`; vequir-unit's names both. Each
+`load_library("power/cell_18650")`; vequir-unit's names both. Each
 script resolves against its own repository, so a vequir-power part loaded
 from vequir-unit still finds vequir-standard through vequir-power's file.
 

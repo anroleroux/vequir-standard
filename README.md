@@ -1,7 +1,7 @@
 # vequir-standard
 
-VequIR's standard parts, as a parts library for the
-[CAD tool](tools/cad/): parts made to a standard or a maker's drawing, written as
+VequIR's bought-in parts, as a parts library for the
+[CAD tool](tools/cad/): everything bought in rather than made, modelled to a standard, a maker's drawing or a seller's listing, written as
 CadQuery B-rep code from a plain-language description and built and checked
 as exact solids (BREP, STEP, STL, shaded views).
 
@@ -11,10 +11,18 @@ Product page: **[anroleroux.co.za/vequir-standard](https://anroleroux.co.za/vequ
 
 | Designation | Part |
 | --- | --- |
-| `batteries/cell_18650` | an 18650 lithium-ion cell, 18.4 × 65 mm, standing on its negative end |
-| `terminals/keystone_1107_1` | a Keystone 1107-1 battery clip with a solder lug |
-| `fasteners/m1_2x3_countersunk` | an M1.2 × 3 countersunk screw |
-| `fasteners/m1_2x6_countersunk` | an M1.2 × 6 countersunk screw |
+| `power/cell_18650` | an 18650 lithium-ion cell, 18.4 × 65 mm, standing on its negative end |
+| `power/keystone_1107_1` | a Keystone 1107-1 battery clip with a solder lug |
+| `power/bms_3s_20a` | DIY Electronics' 3S Li-ion protection module (BMS), 20 A, 64 × 20 × 3.4 mm |
+| `power/ip6505_charger` | an IP6505 USB-A fast-charge board, 34.3 × 17 mm |
+| `power/cn3302_charger` | a CN3302 2S USB-C charger board, 25 × 18 mm |
+| `hardware/m1_2x3_countersunk` | an M1.2 × 3 countersunk screw |
+| `hardware/m1_2x6_countersunk` | an M1.2 × 6 countersunk screw |
+| `electronics/pico_2w` | a Raspberry Pi Pico 2 W, 51 × 21 mm |
+
+The categories: **power** (cells, battery clips, protection and charger
+boards), **hardware** (screws, nuts, washers) and **electronics**
+(microcontrollers and other boards).
 
 ```
 library/<category>/category.md            "# Title", then a blurb
@@ -27,9 +35,9 @@ reads its variables (`cell.diameter`, `screw.length`), so whatever is sized
 from it follows a change here. Other repositories reach this library by
 naming it in their `libraries.txt` (`../vequir-standard/library`):
 [vequir-power](https://github.com/anroleroux/vequir-power) does, for the
-holder's cell and clips and the pack's screws, and
+holder's cell and clips and the pack's screws and BMS, and
 [vequir-unit](https://github.com/anroleroux/vequir-unit) does, for the PB6's
-screws. This library uses no other, and must not: dependencies point down,
+charger boards and screws. This library uses no other, and must not: dependencies point down,
 unit → power → standard.
 
 A change here moves the parts built from it in those repositories: rebuild
@@ -53,7 +61,7 @@ pip install -e "./tools/cad[dev]"
 (cd tools/cad && python -m pytest -q)         # the tool's own tests
 
 python -m pytest -q tests                     # checks of the real parts
-cad build library/fasteners/m1_2x6_countersunk   # one part
+cad build library/hardware/m1_2x6_countersunk    # one part
 cad site --out results --site site      # every part, then the pages
 ```
 

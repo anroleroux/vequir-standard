@@ -19,13 +19,15 @@ product page (its catalogue site on GitHub Pages):
 
 | Repository | Holds | Page |
 | --- | --- | --- |
-| `vequir-standard` | `library/`: standard parts — `batteries/` (cells), `terminals/` (battery clips), `fasteners/` (screws) | anroleroux.co.za/vequir-standard |
-| `vequir-power` | `library/battery_holders/`: the single 18650 holder and the six-cell pack (assemblies), and their own parts (the holder body, the end strip and other brackets) | anroleroux.co.za/vequir-power |
-| `vequir-unit` | `products/`: VequIR's own units, such as the PB6 powerbank | anroleroux.co.za/vequir-unit |
+| `vequir-standard` | `library/`: everything bought in — `power/` (cells, battery clips, the BMS, charger boards), `hardware/` (screws), `electronics/` (the Pico 2 W and other boards) | anroleroux.co.za/vequir-standard |
+| `vequir-power` | `library/`: what VequIR makes for packs — `battery_holders/` (the single 18650 holder and its body, the six-cell pack) and `brackets/` (the end strip, clamping beam and BMS clamp) | anroleroux.co.za/vequir-power |
+| `vequir-unit` | `products/`: VequIR's own units, such as the PB6 powerbank: only each one's enclosure parts and its one assembly | anroleroux.co.za/vequir-unit |
 
-- Pick the repository by what the item is: a part made to a standard or a
-  maker's drawing goes in vequir-standard; a holder, bracket, strip or pack
-  in vequir-power; a product in vequir-unit. If it is unclear, ask.
+- Pick the repository by what the item is: anything bought in (a cell, a
+  screw, a board) goes in vequir-standard, in the category that fits
+  (power, hardware, electronics; add one if none does); a holder, bracket,
+  strip or pack in vequir-power; a product's enclosure parts and its
+  assembly in vequir-unit. If it is unclear, ask.
 - A repository uses the others' libraries through `libraries.txt` at its
   root: one library directory per line, relative to the file
   (`../vequir-standard/library`). vequir-power lists vequir-standard;
@@ -90,7 +92,7 @@ library/<category>/<assembly>/<part>/...          its parts
   rather than copying a library part.
 - Inside a library assembly, parts use `load_part` on each other as usual,
   and `load_library` for another library's items (the holder body sizes
-  itself from `load_library("batteries/cell_18650")`).
+  itself from `load_library("power/cell_18650")`).
 - Worked example: vequir-power's `library/battery_holders/single_18650_holder/`.
 
 ## Steps
@@ -149,7 +151,7 @@ library/<category>/<assembly>/<part>/...          its parts
      fit itself (clearance, overlap) in named constants.
 
    Worked examples:
-   - vequir-standard's `library/fasteners/m1_2x6_countersunk/part.py`: a
+   - vequir-standard's `library/hardware/m1_2x6_countersunk/part.py`: a
      standalone part;
    - vequir-unit's `products/PB6/lid/part.py`: a part sized from another
      with `load_part`.
@@ -236,7 +238,7 @@ library/<category>/<assembly>/<part>/...          its parts
    - what was built: size and key features;
    - any assumptions you had to make;
    - the page link: `https://anroleroux.co.za/<repository>/products/<designation>/index.html`
-     (e.g. `https://anroleroux.co.za/vequir-unit/products/PB6/chassis/base/index.html`).
+     (e.g. `https://anroleroux.co.za/vequir-unit/products/PB6/base/index.html`).
      For a library item it is `.../<repository>/library/<category>/<item>/index.html`.
 
 ## Other changes
