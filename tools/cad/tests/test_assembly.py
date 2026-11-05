@@ -105,7 +105,8 @@ def test_components_keep_the_colour_they_were_added_with(tmp_path):
     _, failures = build_catalog(root, tmp_path / "results", tmp_path / "site", log=lambda _: None)
     assert not failures
     page = (tmp_path / "site/products/P1/stack/index.html").read_text()
-    assert 'data-names="stack/box stack/slab" data-colors="#5c8fc7 #ff0000" data-groups="0 1"' in page
+    assert ('data-names="stack/box stack/slab" data-counts="1 1" data-colors="#5c8fc7 #ff0000" '
+            'data-groups="0 1"') in page
 
 
 def test_site_shows_the_assembled_model_with_its_fit(tmp_path):
@@ -150,3 +151,19 @@ def test_a_product_level_model_and_part_reach_the_site(tmp_path):
     assert "1 assembly · 1 part" in page
     assert (tmp_path / "site/products/P1/_assembly/part.stl").exists()
     assert (tmp_path / "site/products/P1/cap/index.html").exists()
+
+
+def test_a_screw_forming_its_thread_is_marked_and_a_real_clash_is_not():
+    """A 1.2 mm shank in a 0.95 mm tap hole overlaps as a thin coaxial ring: a
+    thread. A block pushed into another is a clash all the same."""
+    import cadquery as cq
+
+    from cad.part import interference
+
+    post = cq.Workplane("XY").box(4, 4, 5).faces(">Z").workplane().hole(0.95, 3).val()
+    shank = cq.Workplane("XY", origin=(0, 0, 0.5)).circle(0.6).extrude(3).val()
+    block = cq.Workplane("XY", origin=(1.5, 0, 0)).box(2, 2, 2).val()
+    clashes, _ = interference([("post", post), ("screw", shank), ("block", block)])
+    by_pair = {(c["a"], c["b"]): c for c in clashes}
+    assert by_pair[("post", "screw")].get("thread") is True
+    assert "thread" not in by_pair[("post", "block")]

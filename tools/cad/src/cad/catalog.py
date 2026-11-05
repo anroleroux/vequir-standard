@@ -65,9 +65,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from .part import LIBRARY_DIR, library_roots, script_in
+from .part import LIBRARY_DIR, library_roots, library_sites, script_in
 from .pipeline import run_script
-from .site import DEFAULT_LEDE, DEFAULT_TITLE, Assembly, Product, build_site, read_part
+from .site import DEFAULT_LEDE, DEFAULT_TITLE, Assembly, Product, _title, build_site, read_part
 
 PART_SCRIPT = "part.py"
 ASSEMBLY_SCRIPT = "assembly.py"
@@ -76,6 +76,8 @@ PRODUCTS, LIBRARY = "products", LIBRARY_DIR
 TOP_FILE = {PRODUCTS: "product.md", LIBRARY: "category.md"}
 #: A script's use of a library item: ``load_library("battery_holders/single_18650_holder")``.
 _USES_LIBRARY = re.compile(r"""load_library\(\s*["']([^"']+)["']""")
+#: A script loading another into a name: ``base = load_part("base")``.
+_LOADS = re.compile(r"""^\s*(\w+)\s*=\s*load_(part|library)\(\s*["']([^"']+)["']""", re.M)
 #: Where an assembly model is built and published, inside its assembly's
 #: directory; the leading underscore keeps it clear of every slug.
 ASSEMBLY_DIR = "_assembly"
@@ -121,6 +123,19 @@ class Entry:
         base = Path(results) if self.section == PRODUCTS else Path(results) / self.section
         base = base.joinpath(self.product, *self.assemblies)
         return base / ASSEMBLY_DIR if self.is_assembly else base / self.part
+
+    def placed(self) -> list[tuple[str, str]]:
+        """What this script places, in order, without repeats: each
+        ``load_part``/``load_library`` call (``("part", "base")``,
+        ``("library", "hardware/m1_2x6_countersunk")``) whose ``.result`` the
+        script uses. A load only read for sizes is left out."""
+        text = self.script.read_text()
+        out = []
+        for name, kind, path in _LOADS.findall(text):
+            key = (kind, path.strip("/"))
+            if re.search(rf"\b{re.escape(name)}\.result\b", text) and key not in out:
+                out.append(key)
+        return out
 
     def uses(self) -> list[str]:
         """The library items this script places, by designation, in order."""
@@ -281,6 +296,44 @@ def foreign_uses(entries: list[Entry], library: Path | None) -> list[dict]:
     return uses
 
 
+def placed_items(entry: Entry, entries: list[Entry], library: Path | None) -> list[dict]:
+    """The parts and assemblies an assembly model places, once each, in order,
+    for its page's "Parts in it" list: ``title``, ``label`` (its designation)
+    and ``href``, its page, from the site root for this repository's own items
+    or a full URL on another repository's site (when ``libraries.txt`` names
+    that site; else none)."""
+    by_dir = {e.script.parent.resolve(): e for e in entries}
+    own = Path(library).resolve() if library is not None else None
+    sites = library_sites(entry.script.parent)
+    items = []
+    for kind, path in entry.placed():
+        if kind == "part":
+            target = (entry.script.parent / path).resolve()
+            script = script_in(target)
+            if script is None:
+                continue
+            found = by_dir.get(target)
+            label = found.address if found else path
+            href = page_of(found.address) if found else ""
+        else:
+            for root in library_roots(entry.script.parent):
+                if script_in(root / path) is not None:
+                    break
+            else:
+                continue
+            script = script_in(root / path)
+            label = f"{LIBRARY}/{path}"
+            if root.resolve() == own:
+                href = page_of(label)
+            else:
+                site = sites.get(root.resolve(), "")
+                label = f"{repo_name(root)} · {path}"
+                href = site + page_of(f"{LIBRARY}/{path}") if site else ""
+        items.append({"title": _title(script.read_text(), Path(path).name), "label": label,
+                      "href": href})
+    return items
+
+
 def read_used_by(root: Path, library: Path | None = None) -> list[str]:
     """The base URLs ``used-by.txt`` beside the catalogue lists (``#`` comments),
     each ending in ``/``."""
@@ -354,7 +407,10 @@ def build_catalog(root: Path, results: Path, site_dir: Path, log=print,
             continue
         log(f"built {entry.address}")
         name = entry.part or (entry.assemblies[-1] if entry.assemblies else entry.product)
-        built.append((entry, read_part(out, name)))
+        part = read_part(out, name)
+        if entry.is_assembly:
+            part.placed = placed_items(entry, entries, library if library.is_dir() else None)
+        built.append((entry, part))
     trees = _assemble({PRODUCTS: root, LIBRARY: library}, built, used_in(entries))
     title, lede = read_site_heading(root, library)
     source = repo_name(library) if library.is_dir() else Path(root).resolve().parent.name

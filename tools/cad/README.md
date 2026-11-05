@@ -92,9 +92,9 @@ its own product page (its catalogue site on GitHub Pages):
 
 | Repository | Holds | Page |
 | --- | --- | --- |
-| [vequir-standard](https://github.com/anroleroux/vequir-standard) | `library/`: standard parts — `batteries/cell_18650`, `terminals/keystone_1107_1`, `fasteners/m1_2x6_countersunk` | [anroleroux.co.za/vequir-standard](https://anroleroux.co.za/vequir-standard/) |
-| [vequir-power](https://github.com/anroleroux/vequir-power) | `library/battery_holders/`: the single 18650 holder and the six-cell pack, and their parts (holder body, end strip) | [anroleroux.co.za/vequir-power](https://anroleroux.co.za/vequir-power/) |
-| [vequir-unit](https://github.com/anroleroux/vequir-unit) | `products/`: the PB6 powerbank | [anroleroux.co.za/vequir-unit](https://anroleroux.co.za/vequir-unit/) |
+| [vequir-standard](https://github.com/anroleroux/vequir-standard) | `library/`: bought-in parts — `power/` (cell, clip, BMS, chargers), `hardware/` (screws), `electronics/` (Pico 2 W) | [anroleroux.co.za/vequir-standard](https://anroleroux.co.za/vequir-standard/) |
+| [vequir-power](https://github.com/anroleroux/vequir-power) | `library/`: `battery_holders/` (the single 18650 holder, the six-cell pack) and `brackets/` (end strip, clamping beam, BMS clamp) | [anroleroux.co.za/vequir-power](https://anroleroux.co.za/vequir-power/) |
+| [vequir-unit](https://github.com/anroleroux/vequir-unit) | `products/`: the PB6 powerbank's enclosure and its assembly | [anroleroux.co.za/vequir-unit](https://anroleroux.co.za/vequir-unit/) |
 
 A catalogue repository holds a product breakdown, `products/`, a parts
 library, `library/`, or both, plus a `site.md` (`# Title`, then the
@@ -112,7 +112,10 @@ Assemblies nest to any depth, and the leaf assemblies hold the parts. Each
 part has its `description.md` and `part.py`. `product.md` and `assembly.md`
 name and describe the levels above. A product, and any assembly, may hold an
 `assembly.py`: its contents placed together, checked for interference and
-contact. A part's designation is its path (`PB6/chassis/base`);
+contact. A screw forming its thread in a tap hole is marked as a thread, not
+counted as interference on the site. In the 3D view's toggles, components
+named alike but for a copy number (`screw_01`, `screw_02`, ...) share one
+toggle, marked "×n", when there are more than two. A part's designation is its path (`PB6/chassis/base`);
 `cad build <designation>` builds just that part, or an assembly's
 assembled model (`PB6/chassis`). A script can read another part's variables
 with `load_part("../base")`. See vequir-unit's README for the rules.
@@ -129,12 +132,19 @@ from any depth, and reads its variables as it would with `load_part`.
 1. each directory in `CAD_LIBRARY` (an `os.pathsep`-separated list);
 2. the `library/` directory nearest above the calling script;
 3. each library the nearest `libraries.txt` above the script lists, one
-   directory per line, relative to the file (`../vequir-standard/library`).
+   directory per line, relative to the file, optionally followed by the site
+   that publishes it
+   (`../vequir-standard/library https://anroleroux.co.za/vequir-standard/`).
+
+An assembled model's page lists the parts and assemblies it places (each
+`load_part` or `load_library` whose `.result` the script uses), once each,
+under "Parts in it": each links to its page, on this site or, for another
+repository's library item, on the site `libraries.txt` names for it.
 
 The first library holding the designation provides it. That is how one
 repository uses another's library: vequir-power's `libraries.txt` names
 vequir-standard's, so its holder takes its cell with
-`load_library("batteries/cell_18650")`; vequir-unit's names both. Each
+`load_library("power/cell_18650")`; vequir-unit's names both. Each
 script resolves against its own repository, so a vequir-power part loaded
 from vequir-unit still finds vequir-standard through vequir-power's file.
 

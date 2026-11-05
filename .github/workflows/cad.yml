@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       design:
-        description: 'a part directory holding description.md, e.g. library/terminals/keystone_1107_1, to generate with Claude'
+        description: 'a part directory holding description.md, e.g. library/power/keystone_1107_1, to generate with Claude'
         required: false
         default: ''
 

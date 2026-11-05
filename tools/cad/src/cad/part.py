@@ -115,14 +115,34 @@ def script_in(directory: Path) -> Path | None:
     return None
 
 
+def _libraries_lines(path: Path) -> list[tuple[Path, str]]:
+    """(library directory, its site's base URL or "") for each line of a
+    ``libraries.txt``: the directory relative to the file, then optionally the
+    site that publishes it (``../vequir-standard/library https://…/vequir-standard/``)."""
+    lines = []
+    for line in Path(path).read_text().splitlines():
+        words = line.split("#", 1)[0].split()
+        if words:
+            site = words[1] if len(words) > 1 else ""
+            if site and not site.endswith("/"):
+                site += "/"
+            lines.append(((Path(path).parent / words[0]).resolve(), site))
+    return lines
+
+
 def read_libraries_file(path: Path) -> list[Path]:
     """The library directories a ``libraries.txt`` lists, resolved against it."""
-    roots = []
-    for line in Path(path).read_text().splitlines():
-        line = line.split("#", 1)[0].strip()
-        if line:
-            roots.append((Path(path).parent / line).resolve())
-    return roots
+    return [root for root, _ in _libraries_lines(path)]
+
+
+def library_sites(start: Path) -> dict[Path, str]:
+    """Library directory -> its site's base URL, as the nearest
+    ``libraries.txt`` above ``start`` gives them (libraries it gives none for
+    are left out)."""
+    for directory in [Path(start).resolve(), *Path(start).resolve().parents]:
+        if (directory / LIBRARIES_FILE).is_file():
+            return {root: site for root, site in _libraries_lines(directory / LIBRARIES_FILE) if site}
+    return {}
 
 
 def library_roots(start: Path) -> list[Path]:
@@ -395,6 +415,48 @@ def contact_area(a, b, gap: float = 1e-4) -> float:
     return area
 
 
+THREAD_WALL = 0.3  # a thread's overlap is a ring at most this thick, as a share of its outer radius
+
+
+def is_thread(common) -> bool:
+    """Whether a clash's shared volume is a screw forming its thread: a thin
+    ring round one axis, where a shank overlaps the wall of its tap hole.
+
+    Every face of it is a cylinder or cone on one common axis, or a plane
+    across that axis (or a cone's tip chamfer); its cylinders have at least
+    two radii, the shank's and the hole's, no further apart than
+    ``THREAD_WALL`` of the larger.
+    """
+    from OCP.BRepAdaptor import BRepAdaptor_Surface
+    from OCP.GeomAbs import GeomAbs_Cone, GeomAbs_Cylinder, GeomAbs_Plane
+    from OCP.gp import gp_Lin
+
+    axes, radii, planes = [], set(), []
+    for face in common.Faces():
+        surface = BRepAdaptor_Surface(face.wrapped)
+        kind = surface.GetType()
+        if kind == GeomAbs_Cylinder:
+            cylinder = surface.Cylinder()
+            axes.append(cylinder.Axis())
+            radii.add(round(cylinder.Radius(), 4))
+        elif kind == GeomAbs_Cone:
+            axes.append(surface.Cone().Axis())
+        elif kind == GeomAbs_Plane:
+            planes.append(surface.Plane().Axis().Direction())
+        else:
+            return False
+    if not axes or len(radii) < 2:
+        return False
+    line = gp_Lin(axes[0])  # either way along it
+    for other in axes[1:]:
+        if (not line.Direction().IsParallel(other.Direction(), 1e-6)
+                or line.Distance(other.Location()) > 1e-3):
+            return False
+    if any(not line.Direction().IsParallel(n, 1e-6) for n in planes):
+        return False
+    return max(radii) - min(radii) <= THREAD_WALL * max(radii)
+
+
 def interference(placed: list[tuple[str, Any]], tolerance: float = 1e-6
                  ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """(clashes, contacts) between the placed components, pair by pair.
@@ -404,6 +466,8 @@ def interference(placed: list[tuple[str, Any]], tolerance: float = 1e-6
     faces in the intersection, in mm^2 (a lid resting on a rim).  Only solids
     count as volume: OpenCascade reports a face-only intersection's "volume"
     as its area, which would make every seated part look like a clash.
+    A clash that is a screw forming its thread in a tap hole (``is_thread``)
+    is still listed, marked ``"thread": true``, so a reader can set it aside.
     """
     clashes, contacts = [], []
     for i, (name_a, a) in enumerate(placed):
@@ -413,7 +477,10 @@ def interference(placed: list[tuple[str, Any]], tolerance: float = 1e-6
             common = a.intersect(b)
             volume = sum(s.Volume() for s in common.Solids())
             if volume > tolerance:
-                clashes.append({"a": name_a, "b": name_b, "volume_mm3": round(volume, 4)})
+                clash = {"a": name_a, "b": name_b, "volume_mm3": round(volume, 4)}
+                if is_thread(common):
+                    clash["thread"] = True
+                clashes.append(clash)
                 continue
             area = contact_area(a, b)
             if area > tolerance:
