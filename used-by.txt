@@ -2,3 +2,4 @@
 # their uses.json and lists those uses under "Used in".
 https://anroleroux.co.za/vequir-power/
 https://anroleroux.co.za/vequir-unit/
+https://anroleroux.co.za/vequir-vehicle/

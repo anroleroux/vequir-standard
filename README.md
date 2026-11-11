@@ -19,10 +19,12 @@ Product page: **[anroleroux.co.za/vequir-standard](https://anroleroux.co.za/vequ
 | `hardware/m1_2x3_countersunk` | an M1.2 × 3 countersunk screw |
 | `hardware/m1_2x6_countersunk` | an M1.2 × 6 countersunk screw |
 | `electronics/pico_2w` | a Raspberry Pi Pico 2 W, 51 × 21 mm |
+| `actuators/sg90` | a TowerPro SG90 micro servo, 22.8 × 12.2 × 22.7 mm, 32.2 mm across its tabs |
+| `actuators/sg90_horn` | the SG90's single-arm horn, 14 mm to its hole |
 
 The categories: **power** (cells, battery clips, protection and charger
-boards), **hardware** (screws, nuts, washers) and **electronics**
-(microcontrollers and other boards).
+boards), **hardware** (screws, nuts, washers) **electronics**
+(microcontrollers and other boards) and **actuators** (servos and their horns).
 
 ```
 library/<category>/category.md            "# Title", then a blurb
@@ -37,15 +39,17 @@ naming it in their `libraries.txt` (`../vequir-standard/library`):
 [vequir-power](https://github.com/anroleroux/vequir-power) does, for the
 holder's cell and clips and the pack's screws and BMS, and
 [vequir-unit](https://github.com/anroleroux/vequir-unit) does, for the PB6's
-charger boards and screws. This library uses no other, and must not: dependencies point down,
-unit → power → standard.
+charger boards and screws, and
+[vequir-vehicle](https://github.com/anroleroux/vequir-vehicle) does, for
+the MV1's steering servo and its horn. This library uses no other, and must not: dependencies point down,
+unit, vehicle → power → standard.
 
 A change here moves the parts built from it in those repositories: rebuild
 them before pushing, and push them on the same branch name.
 
 Each item's page lists, under "Used in", the scripts that place it in the
-other repositories: `used-by.txt` names vequir-power's and vequir-unit's
-site, and the page reads their `uses.json` (which every site publishes) in
+other repositories: `used-by.txt` names vequir-power's, vequir-unit's and
+vequir-vehicle's sites, and the page reads their `uses.json` (which every site publishes) in
 the browser. When another repository starts using this library, add its site
 there.
 

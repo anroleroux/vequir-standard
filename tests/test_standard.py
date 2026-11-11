@@ -21,7 +21,7 @@ def _summary(result):
 
 def test_the_library_holds_the_standard_parts():
     assert sorted(e.designation for e in discover_all(ROOT / "products")) == [
-        "electronics/pico_2w", "hardware/m1_2x3_countersunk", "hardware/m1_2x6_countersunk",
+        "actuators/sg90", "actuators/sg90_horn", "electronics/pico_2w", "hardware/m1_2x3_countersunk", "hardware/m1_2x6_countersunk",
         "power/bms_3s_20a", "power/cell_18650", "power/cn3302_charger", "power/ip6505_charger",
         "power/keystone_1107_1"]
 
@@ -77,3 +77,16 @@ def test_the_pico_2_w_has_its_pins_and_mounting_holes(tmp_path):
     assert summary["regions"]["mounting_holes"]["count"] == 4
     assert summary["regions"]["pin_strips"]["count"] == 2
     assert summary["regions"]["debug_pads"]["count"] == 1
+
+
+def test_the_sg90_servo_is_its_listed_size_with_tabs_and_shaft(tmp_path):
+    """A 22.8 x 12.2 x 22.7 mm case, 32.2 mm across its tabs, the shaft's top
+    29.7 mm up (case, gear housing, shaft), its axis at the origin."""
+    servo = _summary(build_part(LIBRARY / "actuators/sg90/part.py", tmp_path / "servo"))
+    box = servo["bounding_box"]
+    assert box["size"] == pytest.approx([32.2, 12.2, 29.7])
+    assert box["max"][0] == pytest.approx(10.6)  # the tab past the shaft's end
+    assert servo["regions"]["mounting_holes"]["count"] == 2
+    horn = _summary(build_part(LIBRARY / "actuators/sg90_horn/part.py", tmp_path / "horn"))
+    assert horn["bounding_box"]["size"] == pytest.approx([19.5, 7.0, 4.0])  # hub to the arm's end
+    assert horn["regions"]["hole"]["count"] == 1
