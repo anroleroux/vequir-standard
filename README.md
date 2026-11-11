@@ -21,10 +21,11 @@ Product page: **[anroleroux.co.za/vequir-standard](https://anroleroux.co.za/vequ
 | `electronics/pico_2w` | a Raspberry Pi Pico 2 W, 51 × 21 mm |
 | `actuators/sg90` | a TowerPro SG90 micro servo, 22.8 × 12.2 × 22.7 mm, 32.2 mm across its tabs |
 | `actuators/sg90_horn` | the SG90's single-arm horn, 14 mm to its hole |
+| `actuators/motor_130` | a standard 130-size DC motor, 20 × 15 × 25 mm, its 2 mm shaft 9.6 mm out |
 
 The categories: **power** (cells, battery clips, protection and charger
 boards), **hardware** (screws, nuts, washers) **electronics**
-(microcontrollers and other boards) and **actuators** (servos and their horns).
+(microcontrollers and other boards) and **actuators** (servos and their horns, small DC motors).
 
 ```
 library/<category>/category.md            "# Title", then a blurb
@@ -41,7 +42,7 @@ holder's cell and clips and the pack's screws and BMS, and
 [vequir-unit](https://github.com/anroleroux/vequir-unit) does, for the PB6's
 charger boards and screws, and
 [vequir-vehicle](https://github.com/anroleroux/vequir-vehicle) does, for
-the MV1's steering servo and its horn. This library uses no other, and must not: dependencies point down,
+the MV1's steering servos and their horns, and its drive motors. This library uses no other, and must not: dependencies point down,
 unit, vehicle → power → standard.
 
 A change here moves the parts built from it in those repositories: rebuild

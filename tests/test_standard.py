@@ -21,7 +21,7 @@ def _summary(result):
 
 def test_the_library_holds_the_standard_parts():
     assert sorted(e.designation for e in discover_all(ROOT / "products")) == [
-        "actuators/sg90", "actuators/sg90_horn", "electronics/pico_2w", "hardware/m1_2x3_countersunk", "hardware/m1_2x6_countersunk",
+        "actuators/motor_130", "actuators/sg90", "actuators/sg90_horn", "electronics/pico_2w", "hardware/m1_2x3_countersunk", "hardware/m1_2x6_countersunk",
         "power/bms_3s_20a", "power/cell_18650", "power/cn3302_charger", "power/ip6505_charger",
         "power/keystone_1107_1"]
 
@@ -90,3 +90,13 @@ def test_the_sg90_servo_is_its_listed_size_with_tabs_and_shaft(tmp_path):
     horn = _summary(build_part(LIBRARY / "actuators/sg90_horn/part.py", tmp_path / "horn"))
     assert horn["bounding_box"]["size"] == pytest.approx([19.5, 7.0, 4.0])  # hub to the arm's end
     assert horn["regions"]["hole"]["count"] == 1
+
+
+def test_the_130_motor_is_20_by_15_by_25_with_its_shaft(tmp_path):
+    """A 20 mm can with flats 15 mm apart, 25 mm long behind its front face,
+    the 2 mm shaft 9.6 mm out of it."""
+    motor = _summary(build_part(LIBRARY / "actuators/motor_130/part.py", tmp_path / "motor"))
+    box = motor["bounding_box"]
+    assert box["size"] == pytest.approx([20.0, 15.0, 34.6])
+    assert box["min"][2] == pytest.approx(-25.0) and box["max"][2] == pytest.approx(9.6)
+    assert motor["regions"]["flats"]["count"] == 2
