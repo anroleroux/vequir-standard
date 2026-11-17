@@ -21,8 +21,8 @@ def _summary(result):
 
 def test_the_library_holds_the_standard_parts():
     assert sorted(e.designation for e in discover_all(ROOT / "products")) == [
-        "actuators/motor_130", "actuators/sg90", "actuators/sg90_horn", "electronics/pico_2w",
-        "electronics/tsd_1166_button", "electronics/usb_c_breakout", "electronics/ws2812_stick_8",
+        "actuators/motor_130", "actuators/sg90", "actuators/sg90_horn", "electronics/buzzer_12x9",
+        "electronics/ds18b20", "electronics/pico_2w", "electronics/tsd_1166_button", "electronics/usb_c_breakout", "electronics/ws2812_stick_8",
         "hardware/m1_2x3_countersunk", "hardware/m1_2x6_countersunk",
         "power/bms_1s_3a", "power/bms_3s_20a", "power/cell_18650", "power/cn3302_charger",
         "power/ip6505_charger", "power/keystone_1107_1", "power/mt3608_boost"]
@@ -120,3 +120,14 @@ def test_the_ls1_boards_are_their_listed_sizes(tmp_path):
     assert stick["regions"]["led_tops"]["count"] == 8
     button = size("electronics/tsd_1166_button")
     assert button["regions"]["button"]["count"] == 1  # the 10 mm button
+
+
+def test_the_buzzer_and_the_ds18b20_are_their_listed_sizes(tmp_path):
+    """The buzzer 12 mm across and 9 mm tall over its 5.5 mm pins; the
+    DS18B20 a TO-92, 4.6 mm across its flat."""
+    buzzer = _summary(build_part(LIBRARY / "electronics/buzzer_12x9/part.py", tmp_path / "bz"))
+    assert buzzer["bounding_box"]["size"] == pytest.approx([12.0, 12.0, 14.5])
+    assert buzzer["regions"]["pins"]["count"] == 2
+    sensor = _summary(build_part(LIBRARY / "electronics/ds18b20/part.py", tmp_path / "ds"))
+    assert sensor["bounding_box"]["size"][:2] == pytest.approx([4.6, 3.6])
+    assert sensor["regions"]["leads"]["count"] == 3
