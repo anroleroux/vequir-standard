@@ -22,7 +22,7 @@ def _summary(result):
 def test_the_library_holds_the_standard_parts():
     assert sorted(e.designation for e in discover_all(ROOT / "products")) == [
         "actuators/motor_130", "actuators/sg90", "actuators/sg90_horn", "electronics/buzzer_12x9",
-        "electronics/diode_1n5822", "electronics/ds18b20", "electronics/pico_2w", "electronics/tsd_1166_button", "electronics/usb_c_breakout", "electronics/ws2812_stick_8",
+        "electronics/diode_1n5822", "electronics/ds18b20", "electronics/npn_bc337", "electronics/pico_2w", "electronics/resistor_025w", "electronics/tsd_1166_button", "electronics/usb_c_breakout", "electronics/ws2812_stick_8",
         "hardware/m1_2x3_countersunk", "hardware/m1_2x6_countersunk",
         "power/bms_1s_3a", "power/bms_3s_20a", "power/cell_18650", "power/cn3302_charger",
         "power/ip6505_charger", "power/keystone_1107_1", "power/mt3608_boost",
@@ -136,9 +136,19 @@ def test_the_buzzer_and_the_ds18b20_are_their_listed_sizes(tmp_path):
 
 def test_the_tp4056_module_and_the_1n5822_are_their_sizes(tmp_path):
     """The TP4056 board 28 x 17 mm with its six pads, the USB-C 0.6 mm proud;
-    the 1N5822 a 9.5 x 5.3 mm DO-201AD body on 25.4 mm leads."""
+    the 1N5822 a 9.5 x 5.3 mm DO-201AD body, formed for 0.6 in, its 1.3 mm
+    leads cut 3 mm under the board's top."""
     tp = _summary(build_part(LIBRARY / "power/tp4056_charger/part.py", tmp_path / "tp"))
     assert tp["bounding_box"]["size"][:2] == pytest.approx([28.6, 17.0])
     assert {k for k in tp["regions"]} >= {"in_plus", "in_minus", "b_plus", "b_minus", "out_plus", "out_minus"}
     diode = _summary(build_part(LIBRARY / "electronics/diode_1n5822/part.py", tmp_path / "d"))
-    assert diode["bounding_box"]["size"] == pytest.approx([60.3, 5.3, 5.3])
+    assert diode["bounding_box"]["size"] == pytest.approx([15.24 + 1.3, 5.3, 5.3 + 3.0])
+
+
+def test_the_formed_resistor_and_transistor_fit_the_0_1_in_grid(tmp_path):
+    """The resistor's leads 0.4 in apart, the BC337's legs 0.1 in apart."""
+    r = _summary(build_part(LIBRARY / "electronics/resistor_025w/part.py", tmp_path / "r"))
+    assert r["bounding_box"]["size"][0] == pytest.approx(10.16 + 0.6)
+    q = _summary(build_part(LIBRARY / "electronics/npn_bc337/part.py", tmp_path / "q"))
+    assert q["bounding_box"]["size"][0] == pytest.approx(2 * 2.54 + 0.45)
+    assert q["regions"]["legs"]["count"] == 3

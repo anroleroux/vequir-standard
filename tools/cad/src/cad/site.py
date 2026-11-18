@@ -660,9 +660,17 @@ def render_part(product: Product, chain: tuple[Assembly, ...], part: Part) -> st
 
 def _schematic(node: Assembly, root: str) -> str:
     """A node's wiring schematic, its parts linked to the pages of the items
-    its assembled model places (matched by library path or designation)."""
+    its assembled models (its own and its sub-assemblies') place, matched by
+    library path or designation."""
     links = {}
-    placed = node.model.placed if node.model else []
+
+    def models(n):  # this level's assembled model, then its sub-assemblies'
+        if n.model:
+            yield n.model
+        for sub in n.assemblies:
+            yield from models(sub)
+
+    placed = [p for model in models(node) for p in model.placed]
     for comp in node.schematic.get("components", []):
         item = comp.get("item")
         for p in placed:
