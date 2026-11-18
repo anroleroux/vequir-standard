@@ -3,6 +3,7 @@
     products/
       PB6/                              a product; the directory name is its designation
         product.md                      "# Title", then a paragraph or two about it
+        schematic.json                  optional: its wiring, drawn on its page (cad.schematic)
         assembly.py                     optional: the whole product, assembled
         lid/                            a part of the product itself
           description.md                the natural-language description
@@ -67,6 +68,7 @@ from pathlib import Path
 
 from .part import LIBRARY_DIR, library_roots, library_sites, script_in
 from .pipeline import run_script
+from .schematic import SCHEMATIC, load as load_schematic
 from .site import DEFAULT_LEDE, DEFAULT_TITLE, Assembly, Product, _title, build_site, read_part
 
 PART_SCRIPT = "part.py"
@@ -346,6 +348,12 @@ def read_used_by(root: Path, library: Path | None = None) -> list[str]:
     return []
 
 
+def _schematic_in(directory: Path) -> dict | None:
+    """A product's or assembly's ``schematic.json``, checked, if it has one."""
+    path = Path(directory) / SCHEMATIC
+    return load_schematic(path) if path.is_file() else None
+
+
 def _assemble(roots: dict[str, Path], built: list[tuple[Entry, object]],
               users: dict[str, list[str]] | None = None) -> list[Product]:
     """The product (and library category) trees from built parts, with titles
@@ -362,7 +370,8 @@ def _assemble(roots: dict[str, Path], built: list[tuple[Entry, object]],
                                         if entry.section == LIBRARY else entry.product)
             product = products[entry.section, entry.product] = Product(
                 entry.product, title, blurb, section=entry.section,
-                used_in=users.get(entry.product, []) if entry.section == LIBRARY else [])
+                used_in=users.get(entry.product, []) if entry.section == LIBRARY else [],
+                schematic=_schematic_in(root / entry.product))
         siblings, node = product.assemblies, product
         for depth in range(1, len(entry.assemblies) + 1):
             key = (entry.section, entry.product, *entry.assemblies[:depth])
@@ -373,7 +382,8 @@ def _assemble(roots: dict[str, Path], built: list[tuple[Entry, object]],
                                             slug.replace("_", " ").capitalize())
                 where = "/".join(key[1:])
                 node = nodes[key] = Assembly(slug, title, blurb, used_in=users.get(where, [])
-                                             if entry.section == LIBRARY else [])
+                                             if entry.section == LIBRARY else [],
+                                             schematic=_schematic_in(root.joinpath(*key[1:])))
                 siblings.append(node)
             siblings = node.assemblies
         if entry.is_assembly:
