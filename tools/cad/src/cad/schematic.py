@@ -28,7 +28,8 @@ to the part's own page.
                                               the part links to its page
          "x": 40, "y": 0,                     grid units (10 px), the box's top left
          "w": 16,                             optional, grid units; else from its text
-         "symbol": "diode",                   optional: diode, resistor, npn, pmos, cell
+         "symbol": "diode",                   optional: diode, resistor, capacitor,
+                                              npn, pmos, cell
          "pins": {"left": ["VBUS:40", "VSYS:39"], "right": ["GP2:4"],
                   "top": [], "bottom": []},   each "NAME" or "NAME:number", in order
                                               down (left, right) or across (top, bottom)
@@ -62,7 +63,7 @@ from pathlib import Path
 SCHEMATIC = "schematic.json"
 SIDES = ("left", "right", "top", "bottom")
 KINDS = ("power", "ground", "signal", "data")
-SYMBOLS = ("diode", "resistor", "npn", "pmos", "cell")
+SYMBOLS = ("diode", "resistor", "capacitor", "npn", "pmos", "cell")
 DRAWS = ("wire", "symbol", "label")
 
 UNIT = 10  # px per grid unit: the routing grid
@@ -396,6 +397,8 @@ def _symbol(kind: str, x: float, y: float, w: float, h: float) -> str:
     if kind == "resistor":
         return (f'<path class=sym d="M{x} {cy}H{cx - 12}M{cx + 12} {cy}H{x + w}"/>'
                 f'<rect class=sym x="{cx - 12}" y="{cy - 5}" width=24 height=10 />')
+    if kind == "capacitor":
+        return f'<path class=sym d="M{x} {cy}H{cx - 3}M{cx + 3} {cy}H{x + w}M{cx - 3} {cy - 9}V{cy + 9}M{cx + 3} {cy - 9}V{cy + 9}"/>'
     if kind == "cell":
         return (f'<path class=sym d="M{x} {cy}H{cx - 3}M{cx + 3} {cy}H{x + w}'
                 f'M{cx - 3} {cy - 10}V{cy + 10}M{cx + 3} {cy - 5}V{cy + 5}"/>'
@@ -477,7 +480,7 @@ def render(data: dict, links: dict[str, str] | None = None, root: str = "") -> s
             net_attr = f' data-net="{_e(net["name"])}"' if net else ""
             kind = net.get("kind", "signal") if net else "nc"
             parts.append(f'<line class="stub k-{kind}"{net_attr} x1="{px}" y1="{py}" x2="{ex}" y2="{ey}"/>')
-            if side in ("left", "right") and comp.get("symbol") not in ("diode", "resistor", "cell"):
+            if side in ("left", "right") and comp.get("symbol") not in ("diode", "resistor", "capacitor", "cell"):
                 tx = px + 5 if side == "left" else px - 5
                 anchor = "start" if side == "left" else "end"
                 parts.append(f'<text class=pin x="{tx}" y="{py + 4}" text-anchor={anchor}>{_e(name)}</text>')
