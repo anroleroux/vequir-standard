@@ -130,7 +130,7 @@ def test_the_buzzer_and_the_ds18b20_are_their_listed_sizes(tmp_path):
     assert buzzer["bounding_box"]["size"] == pytest.approx([12.0, 12.0, 14.5])
     assert buzzer["regions"]["pins"]["count"] == 2
     sensor = _summary(build_part(LIBRARY / "electronics/ds18b20/part.py", tmp_path / "ds"))
-    assert sensor["bounding_box"]["size"][:2] == pytest.approx([4.6, 3.6])
+    assert sensor["bounding_box"]["size"][:2] == pytest.approx([2 * 2.54 + 0.45, 3.6])  # legs at 0.1 in
     assert sensor["regions"]["leads"]["count"] == 3
 
 
