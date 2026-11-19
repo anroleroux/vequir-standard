@@ -37,6 +37,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
+from . import schematic
+
 #: three.js, pinned; the page loads it as an ES module through an import map.
 THREE_VERSION = "0.160.0"
 _THREE = f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}"
@@ -97,6 +99,7 @@ class Assembly:
     parts: list[Part] = field(default_factory=list)
     model: Part | None = None  # the assembled model, from assembly.py
     used_in: list[str] = field(default_factory=list)  # a library item: who places it
+    schematic: dict | None = None  # its wiring, from schematic.json (cad.schematic)
 
     @property
     def n_parts(self) -> int:
@@ -613,6 +616,7 @@ def render_node(product: Product, chain: tuple[Assembly, ...] = ()) -> str:
                  f'<span class=muted>{_e(node.model.title)}</span></h2>'
                  + _detail(node.model, ASSEMBLY_DIR, model=True, root=root))
     blurb = _paragraphs(node.blurb) if node.blurb else ""
+    wiring = _schematic(node, root) if node.schematic else ""
     body = f"""<header class="site-head compact">
   <div class=wrap>
     {_breadcrumb(product, chain, root, None)}
@@ -626,6 +630,7 @@ def render_node(product: Product, chain: tuple[Assembly, ...] = ()) -> str:
   {_library_use(product, chain, root) if chain else ""}
   {_contents(product, chain)}
   {model}
+  {wiring}
   {_up(parent_title, '../index.html')}
 </main>"""
     return _page(f"{node.title} · {_site['title']}", f"{node.title}: its assembled model and contents, "
@@ -651,6 +656,29 @@ def render_part(product: Product, chain: tuple[Assembly, ...], part: Part) -> st
 </main>"""
     return _page(f"{part.title} · {_site['title']}", f"{part.title}: built as CadQuery B-rep code.",
                  body, viewer=True)
+
+
+def _schematic(node: Assembly, root: str) -> str:
+    """A node's wiring schematic, its parts linked to the pages of the items
+    its assembled models (its own and its sub-assemblies') place, matched by
+    library path or designation."""
+    links = {}
+
+    def models(n):  # this level's assembled model, then its sub-assemblies'
+        if n.model:
+            yield n.model
+        for sub in n.assemblies:
+            yield from models(sub)
+
+    placed = [p for model in models(node) for p in model.placed]
+    for comp in node.schematic.get("components", []):
+        item = comp.get("item")
+        for p in placed:
+            label = p["label"]
+            if item and p["href"] and (label == item or label.endswith(("/" + item, " · " + item))):
+                links[item] = p["href"]
+                break
+    return schematic.render(node.schematic, links, root)
 
 
 def _product_card(product: Product, base: str = "", picture: bool = True) -> str:
@@ -1191,3 +1219,5 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+_CSS += schematic.CSS  # the wiring schematics (cad.schematic)
