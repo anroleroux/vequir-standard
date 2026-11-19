@@ -22,7 +22,7 @@ def _summary(result):
 def test_the_library_holds_the_standard_parts():
     assert sorted(e.designation for e in discover_all(ROOT / "products")) == [
         "actuators/motor_130", "actuators/sg90", "actuators/sg90_horn", "electronics/buzzer_12x9",
-        "electronics/capacitor_mlcc", "electronics/diode_1n5822", "electronics/ds18b20", "electronics/npn_bc337", "electronics/pico_2w", "electronics/resistor_025w", "electronics/tsd_1166_button", "electronics/usb_c_breakout", "electronics/ws2812_stick_8",
+        "electronics/capacitor_mlcc", "electronics/diode_1n5822", "electronics/ds18b20", "electronics/npn_bc337", "electronics/pico_2w", "electronics/resistor_025w", "electronics/resistor_025w_inline", "electronics/tsd_1166_button", "electronics/usb_c_breakout", "electronics/ws2812_stick_8",
         "hardware/m1_2x3_countersunk", "hardware/m1_2x6_countersunk",
         "power/bms_1s_3a", "power/bms_3s_20a", "power/cell_18650", "power/cn3302_charger",
         "power/ip6505_charger", "power/keystone_1107_1", "power/mt3608_boost",
