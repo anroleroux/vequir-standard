@@ -53,6 +53,7 @@ product page (its catalogue site on GitHub Pages):
 ```
 products/<PRODUCT>/product.md                       "# Title" + blurb
 products/<PRODUCT>/assembly.py                      optional: the whole product, assembled
+products/<PRODUCT>/schematic.json                   optional: its wiring, drawn on its page
 products/<PRODUCT>/<part>/...                       a part of the product itself (e.g. PB6/lid)
 products/<PRODUCT>/<assembly>/assembly.md           "# Title" + blurb
 products/<PRODUCT>/<assembly>/<sub>/.../assembly.md  sub-assemblies, any depth
@@ -188,6 +189,27 @@ library/<category>/<assembly>/<part>/...          its parts
        its rim area.
    - **Check:** fix any interference or missing contact, then look at both
      PNGs, where each component has its own colour.
+
+4c. **Wiring schematic (`schematic.json`)**, when the user asks for a
+   schematic or wiring diagram of a product (or an assembly). Put it beside
+   `product.md` (or `assembly.md`); the site draws it on that level's page as
+   an interactive SVG. The format is in `cad/schematic.py`'s docstring:
+   - **components**: each with a `ref` (`U1`), a `name`, `x`/`y` in 10 px grid
+     units, its `pins` by side (`"left": ["VBUS:40", ...]`, an optional pin
+     number after the colon), an optional `symbol` (diode, resistor, npn,
+     pmos, cell), a `note`, and `item`: the library path or designation the
+     assembled model places, so the part links to its page. Parts that are
+     only wired in (resistors, a MOSFET) get `"modelled": false`.
+   - **nets**: a `name`, a `kind` (power, ground, signal, data), the pins
+     (`"U1.VSYS"`) and a `note`. Each pin is on one net at most; a pin on none
+     is drawn as not connected.
+   - **groups**: optional dashed frames with a label round related parts.
+   - The site routes every net as wires round the parts (a ground net of
+     more than three pins as ground symbols; a net's `draw` can say `wire`,
+     `symbol` or `label`). Leave the router room: about 4 grid units between
+     a box and its neighbour's pins, more where many nets pass. A pin it
+     cannot reach gets a label instead, so look at the page after a change;
+     `cad site` refuses a schematic that names a missing pin.
 
 5. **Build and check it.** Run `cad build <designation>`. For a part it
    writes `results/<designation>/cad/` (for an assembly model,
