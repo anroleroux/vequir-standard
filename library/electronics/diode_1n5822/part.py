@@ -13,7 +13,9 @@ Assumptions where the description is silent:
 - the cathode band is a 0.15 mm deep, 1.5 mm wide groove, 0.5 mm in from
   the cathode end, standing in for the printed band;
 - modelled with the board's top on z = 0: the body along x, cathode at +x,
-  resting on z = 0, the leads at x = +-7.62.
+  resting on z = 0, the leads at x = +-7.62; formed(anode_lead,
+  cathode_lead) gives the same diode with either lead longer before its
+  bend, for an assembly that needs it.
 """
 import cadquery as cq
 
@@ -32,16 +34,31 @@ axis_z = body_d / 2  # the body rests on the board
 lead_xs = [-pitch / 2, pitch / 2]  # anode, cathode
 height = body_d
 
-body = cq.Workplane("YZ", origin=(-body_length / 2, 0, axis_z)).circle(body_d / 2).extrude(body_length)
-band = (cq.Workplane("YZ", origin=(body_length / 2 - band_inset - band_w, 0, axis_z))
-        .circle(body_d / 2).circle(body_d / 2 - band_depth).extrude(band_w))
-across = cq.Workplane("YZ", origin=(-pitch / 2, 0, axis_z)).circle(lead_d / 2).extrude(pitch)
-down = (cq.Workplane("XY", origin=(0, 0, -below))
-        .pushPoints([(x, 0) for x in lead_xs]).circle(lead_d / 2).extrude(below + axis_z))
-corners = [cq.Workplane("XY").sphere(lead_d / 2).translate((x, 0, axis_z)) for x in lead_xs]
-result = body.cut(band).union(across).union(down)
-for c in corners:
-    result = result.union(c)
+
+def formed(anode_lead=None, cathode_lead=None):
+    """The diode with each lead running straight out of the body for
+    anode_lead (cathode_lead) mm before it is bent down; by default both
+    are (pitch - body_length) / 2, the 0.6 in bend. The body stays centred
+    on x = 0, so the anode lead is at x = -(body_length / 2 + anode_lead).
+    An assembly that needs the body further from a hole calls
+    diode.formed(anode_lead=10.2) instead of using result."""
+    straight = (pitch - body_length) / 2
+    a = straight if anode_lead is None else anode_lead
+    k = straight if cathode_lead is None else cathode_lead
+    xs = [-(body_length / 2 + a), body_length / 2 + k]  # anode, cathode
+    body = cq.Workplane("YZ", origin=(-body_length / 2, 0, axis_z)).circle(body_d / 2).extrude(body_length)
+    band = (cq.Workplane("YZ", origin=(body_length / 2 - band_inset - band_w, 0, axis_z))
+            .circle(body_d / 2).circle(body_d / 2 - band_depth).extrude(band_w))
+    across = cq.Workplane("YZ", origin=(xs[0], 0, axis_z)).circle(lead_d / 2).extrude(xs[1] - xs[0])
+    down = (cq.Workplane("XY", origin=(0, 0, -below))
+            .pushPoints([(x, 0) for x in xs]).circle(lead_d / 2).extrude(below + axis_z))
+    shape = body.cut(band).union(across).union(down)
+    for x in xs:
+        shape = shape.union(cq.Workplane("XY").sphere(lead_d / 2).translate((x, 0, axis_z)))
+    return shape
+
+
+result = formed()
 
 regions = {
     "anode_lead": result.faces("<Z").filter(lambda f: f.Center().x < 0),
