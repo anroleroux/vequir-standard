@@ -4,8 +4,9 @@ A shrouded 10-pin IDC header at 0.1 in (2.54 mm) pitch, right-angle: the
 shroud lies on the board, its opening facing along the board, and the two
 rows of five pins bend down through it.
 
-Assumptions where the description is silent (typical catalogue sizes; check
-them against the supplier's drawing):
+Assumptions where the description is silent (Mantech publishes no drawing
+for its SCP10-GR3, so these are typical catalogue sizes; check them against
+the part):
 - the shroud is 20.3 mm long (along the rows), 8.9 mm high off the board
   and 9.0 mm deep (from its opening to its back); its cavity is 15.4 x
   6.2 mm and 6.0 mm deep, centred in its face, with a 4.5 mm key notch
