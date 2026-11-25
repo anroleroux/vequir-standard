@@ -13,7 +13,8 @@ Assumptions where the description is silent:
 - the cathode band is a 0.15 mm deep, 1.5 mm wide groove, 0.5 mm in from
   the cathode end, standing in for the printed band;
 - modelled with the board's top on z = 0: the body along x, cathode at +x,
-  resting on z = 0, the leads at x = +-7.62.
+  resting on z = 0, the leads at x = +-7.62; straight(lead) gives the
+  same diode with straight leads cut to `lead` mm, for wiring in.
 """
 import cadquery as cq
 
@@ -32,16 +33,34 @@ axis_z = body_d / 2  # the body rests on the board
 lead_xs = [-pitch / 2, pitch / 2]  # anode, cathode
 height = body_d
 
-body = cq.Workplane("YZ", origin=(-body_length / 2, 0, axis_z)).circle(body_d / 2).extrude(body_length)
-band = (cq.Workplane("YZ", origin=(body_length / 2 - band_inset - band_w, 0, axis_z))
-        .circle(body_d / 2).circle(body_d / 2 - band_depth).extrude(band_w))
-across = cq.Workplane("YZ", origin=(-pitch / 2, 0, axis_z)).circle(lead_d / 2).extrude(pitch)
-down = (cq.Workplane("XY", origin=(0, 0, -below))
-        .pushPoints([(x, 0) for x in lead_xs]).circle(lead_d / 2).extrude(below + axis_z))
-corners = [cq.Workplane("XY").sphere(lead_d / 2).translate((x, 0, axis_z)) for x in lead_xs]
-result = body.cut(band).union(across).union(down)
-for c in corners:
-    result = result.union(c)
+
+def straight(lead=3.0):
+    """The diode with straight leads cut to `lead` mm out of each end of the
+    body, along its axis: for wiring in rather than fitting on a board. The
+    body rests on z = 0 like the formed diode, centred on x = 0, cathode at +x."""
+    body = cq.Workplane("YZ", origin=(-body_length / 2, 0, axis_z)).circle(body_d / 2).extrude(body_length)
+    band = (cq.Workplane("YZ", origin=(body_length / 2 - band_inset - band_w, 0, axis_z))
+            .circle(body_d / 2).circle(body_d / 2 - band_depth).extrude(band_w))
+    leads = (cq.Workplane("YZ", origin=(-body_length / 2 - lead, 0, axis_z))
+             .circle(lead_d / 2).extrude(body_length + 2 * lead))
+    return body.cut(band).union(leads)
+
+
+def formed():
+    """The diode formed for a board: leads bent down 0.6 in apart."""
+    body = cq.Workplane("YZ", origin=(-body_length / 2, 0, axis_z)).circle(body_d / 2).extrude(body_length)
+    band = (cq.Workplane("YZ", origin=(body_length / 2 - band_inset - band_w, 0, axis_z))
+            .circle(body_d / 2).circle(body_d / 2 - band_depth).extrude(band_w))
+    across = cq.Workplane("YZ", origin=(-pitch / 2, 0, axis_z)).circle(lead_d / 2).extrude(pitch)
+    down = (cq.Workplane("XY", origin=(0, 0, -below))
+            .pushPoints([(x, 0) for x in lead_xs]).circle(lead_d / 2).extrude(below + axis_z))
+    shape = body.cut(band).union(across).union(down)
+    for x in lead_xs:
+        shape = shape.union(cq.Workplane("XY").sphere(lead_d / 2).translate((x, 0, axis_z)))
+    return shape
+
+
+result = formed()
 
 regions = {
     "anode_lead": result.faces("<Z").filter(lambda f: f.Center().x < 0),

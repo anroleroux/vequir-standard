@@ -21,11 +21,11 @@ def _summary(result):
 
 def test_the_library_holds_the_standard_parts():
     assert sorted(e.designation for e in discover_all(ROOT / "products")) == [
-        "actuators/motor_130", "actuators/sg90", "actuators/sg90_horn", "electronics/buzzer_12x9",
-        "electronics/capacitor_mlcc", "electronics/diode_1n5822", "electronics/ds18b20", "electronics/npn_bc337", "electronics/pico_2w", "electronics/resistor_025w", "electronics/resistor_025w_inline", "electronics/tsd_1166_button", "electronics/usb_c_breakout", "electronics/ws2812_stick_8",
+        "actuators/motor_130", "actuators/sg90", "actuators/sg90_horn", "electronics/box_header_2x5", "electronics/buzzer_12x9",
+        "electronics/capacitor_mlcc", "electronics/diode_1n5822", "electronics/ds18b20", "electronics/led_ir_5mm", "electronics/npn_bc337", "electronics/phototransistor_5mm", "electronics/pico_2w", "electronics/resistor_025w", "electronics/resistor_025w_inline", "electronics/tsd_1166_button", "electronics/usb_c_breakout", "electronics/ws2812_stick_8",
         "hardware/m1_2x3_countersunk", "hardware/m1_2x6_countersunk",
         "power/bms_1s_3a", "power/bms_3s_20a", "power/cell_18650", "power/cn3302_charger",
-        "power/ip6505_charger", "power/keystone_1107_1", "power/mt3608_boost",
+        "power/holder_18650_1s", "power/ip6505_charger", "power/keystone_1107_1", "power/mt3608_boost",
         "power/tp4056_charger"]
 
 
@@ -152,3 +152,19 @@ def test_the_formed_resistor_and_transistor_fit_the_0_1_in_grid(tmp_path):
     q = _summary(build_part(LIBRARY / "electronics/npn_bc337/part.py", tmp_path / "q"))
     assert q["bounding_box"]["size"][0] == pytest.approx(2 * 2.54 + 0.45)
     assert q["regions"]["legs"]["count"] == 3
+
+
+def test_the_box_header_is_2_x_5_with_its_opening_forward(tmp_path):
+    header = _summary(build_part(LIBRARY / "electronics/box_header_2x5/part.py", tmp_path / "out"))
+    assert header["bounding_box"]["size"][:2] == pytest.approx([20.3, 9.0])  # along the rows, deep
+    assert header["bounding_box"]["max"][2] == pytest.approx(8.9)  # off the board
+    assert header["regions"]["pins"]["count"] == 10
+
+
+def test_the_ir_led_and_phototransistor_are_5_mm_with_a_flange(tmp_path):
+    for item in ("electronics/led_ir_5mm", "electronics/phototransistor_5mm"):
+        part = _summary(build_part(LIBRARY / item / "part.py", tmp_path / item.split("/")[1]))
+        assert part["bounding_box"]["size"][1] == pytest.approx(5.8)  # the flange, across
+        assert part["bounding_box"]["max"][2] == pytest.approx(8.6)  # the dome's top
+        assert part["regions"]["leads"]["count"] == 2
+
